@@ -3,7 +3,27 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Link from "next/link";  // Import Link for navigation
+import Link from "next/link";
+import { MantineProvider, createTheme } from '@mantine/core';
+import '@mantine/core/styles.css';
+
+const theme = createTheme({
+  primaryColor: 'blue',
+  colors: {
+    dark: [
+      '#C1C2C5',
+      '#A6A7AB',
+      '#909296',
+      '#5c5f66',
+      '#373A40',
+      '#2C2E33',
+      '#25262b',
+      '#171717',
+      '#141517',
+      '#101113',
+    ],
+  },
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,14 +48,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {/* Navigation bar */}
-        <div className="navbar">
-          <Link href="/">Home</Link>
-          <Link href="/post-prediction">Post Prediction</Link>
-        </div>
-        
-        {/* Main content */}
-        {children}
+        <MantineProvider theme={theme} defaultColorScheme="dark">
+          {/* Navigation bar */}
+          <div className="navbar">
+            <div className="nav-left">
+              <Link href="/">Home</Link>
+            </div>
+            <div className="nav-right">
+              <Link href="/post-prediction">Post Prediction</Link>
+              <Link href="/salary">Salary</Link>
+            </div>
+          </div>
+
+          {/* Main content */}
+          {children}
+        </MantineProvider>
       </body>
     </html>
   );
