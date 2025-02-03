@@ -5,7 +5,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { MantineProvider, createTheme } from '@mantine/core';
-import '@mantine/core/styles.css';
+import { Notifications } from '@mantine/notifications';
+import '@mantine/core/styles.css'; import '@mantine/notifications/styles.css';
 import { HeaderSimple } from "./components/HeaderSimple";
 
 const theme = createTheme({
@@ -50,6 +51,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <MantineProvider theme={theme} defaultColorScheme="dark">
+          <Notifications position="top-right" />
           <HeaderSimple />
 
           <div style={{ marginTop: '50px' }}>
