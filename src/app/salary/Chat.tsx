@@ -2,7 +2,7 @@
 "use client"
 
 import { useState } from 'react';
-import { Paper, Stack, TextInput, Button, ScrollArea, Text, Box } from '@mantine/core';
+import { Paper,   Title, Stack, TextInput, Button, ScrollArea, Text, Box } from '@mantine/core';
 
 interface Message {
   content: string;
@@ -48,7 +48,7 @@ export default function Chat() {
   return (
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
       <Stack >
-        <Text size="lg" fw={500}>Chat Assistant</Text>
+        <Title order={3} mb="lg">Salary Expert AI</Title>
 
         <ScrollArea style={{ flex: 1 }} mb="md">
           <Stack gap="md">
@@ -62,7 +62,7 @@ export default function Chat() {
               >
                 <Paper
                   p="xs"
-                  bg={message.sender === 'user' ? 'blue.1' : 'gray.0'}
+                  bg={message.sender === 'user' ? 'blue.9' : 'gray.9'}
                   style={{
                     borderRadius: '8px',
                   }}

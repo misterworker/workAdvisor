@@ -6,6 +6,7 @@ import "./globals.css";
 import Link from "next/link";
 import { MantineProvider, createTheme } from '@mantine/core';
 import '@mantine/core/styles.css';
+import { HeaderSimple } from "./components/HeaderSimple";
 
 const theme = createTheme({
   primaryColor: 'blue',
@@ -49,19 +50,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <MantineProvider theme={theme} defaultColorScheme="dark">
-          {/* Navigation bar */}
-          <div className="navbar">
-            <div className="nav-left">
-              <Link href="/">Home</Link>
-            </div>
-            <div className="nav-right">
-              <Link href="/post-prediction">Post Prediction</Link>
-              <Link href="/salary">Salary</Link>
-            </div>
-          </div>
+          <HeaderSimple />
 
-          {/* Main content */}
-          {children}
+          <div style={{ marginTop: '50px' }}>
+            {children}
+          </div>
         </MantineProvider>
       </body>
     </html>

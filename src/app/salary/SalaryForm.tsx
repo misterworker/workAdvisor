@@ -37,7 +37,7 @@ export default function SalaryForm() {
 
   return (
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
-      <Title order={2} mb="lg">Salary Prediction Form</Title>
+      <Title order={3} mb="lg">Salary Prediction Form</Title>
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
           <TextInput
