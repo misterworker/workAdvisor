@@ -1,6 +1,9 @@
+// src/app/layout.tsx
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";  // Import Link for navigation
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,9 +27,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* Navigation bar */}
+        <div className="navbar">
+          <Link href="/">Home</Link>
+          <Link href="/post-prediction">Post Prediction</Link>
+        </div>
+        
+        {/* Main content */}
         {children}
       </body>
     </html>
