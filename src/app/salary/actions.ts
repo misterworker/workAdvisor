@@ -12,17 +12,16 @@ interface SalaryPredictionPayload {
   seniority: string;
   min_years_experience: number;
   field_of_study: string[];
-  country_code: string;
 }
 
-export async function predictSalary(payload: SalaryPredictionPayload) {
+export async function predictSalary(payload: SalaryPredictionPayload, country_code: string) {
   try {
     const response = await fetch('https://salary-prediction-491899619233.asia-southeast1.run.app/predict', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, country_code }),
     });
 
     if (!response.ok) {

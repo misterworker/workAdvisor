@@ -60,40 +60,80 @@ export default function SalaryForm() {
   useState(() => {
     form.setValues(jobPresets.data_scientist);
   });
-  const [prediction, setPrediction] = useState<number | null>(null);
+  const [predictions, setPredictions] = useState<{ [country: string]: number | null }>({
+    US: null,
+    SG: null,
+    IN: null,
+  });
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsLoading(true);
     setError(null);
-    setPrediction(null);
+    setPredictions({ US: null, SG: null, IN: null });
 
-    const payload = {
-      ...values,
-      country_code: 'SG',
-    };
+    const coldBootTimeout = setTimeout(() => {
+      if (predictions.US === null) {
+        console.log("Cold boot notification timeout triggered"); // ADDED LOG
+        notifications.show({
+          title: 'Model waking up',
+          message: 'The Salary AI was sleeping to conserve resources. It\'s waking up now!',
+          color: 'yellow',
+          icon: <XCircle size={18} />,
+          autoClose: 5000, // Automatically close after 5 seconds
+        });
+      }
+    }, 1000); // 3 seconds
+    console.log("handleSubmit started"); // ADDED LOG
 
-    const result = await predictSalary(payload);
 
-    if (result.success && result.data) {
-      setPrediction(result.data.predicted_salary);
+    const countryCodes = ['US', 'SG', 'IN'];
+    const newPredictions: { [country: string]: { success: boolean; data?: any; error?: string | undefined } } = {};
+
+    for (const country_code of countryCodes) {
+      const payload = {
+        ...values,
+      };
+      console.log(`Fetching prediction for ${country_code}`); // ADDED LOG
+      newPredictions[country_code] = await predictSalary(payload, country_code);
+      console.log(`Prediction for ${country_code} returned`); // ADDED LOG
+    }
+
+    let success = true;
+    let message = 'Predictions Complete:\n';
+
+    countryCodes.forEach((country_code) => {
+      const result = newPredictions[country_code];
+      if (result.success && result.data) {
+        setPredictions((prevPredictions) => ({
+          ...prevPredictions,
+          [country_code]: result.data.predicted_salary,
+        }));
+        message += `${country_code}: $${result.data.predicted_salary.toLocaleString()}\n`;
+      } else {
+        success = false;
+        setError(result.error || 'Failed to predict salary');
+        notifications.show({
+          title: 'Prediction Failed',
+          message: result.error || 'Failed to predict salary',
+          color: 'red',
+          icon: <XCircle size={18} />,
+        });
+      }
+    });
+
+    if (success) {
       notifications.show({
-        title: 'Prediction Complete',
-        message: `Predicted salary: $${result.data.predicted_salary.toLocaleString()}`,
+        title: 'Predictions Complete',
+        message: message,
         color: 'green',
         icon: <CheckCircle2 size={18} />,
       });
-    } else {
-      setError(result.error || 'Failed to predict salary');
-      notifications.show({
-        title: 'Prediction Failed',
-        message: result.error || 'Failed to predict salary',
-        color: 'red',
-        icon: <XCircle size={18} />,
-      });
     }
 
+    clearTimeout(coldBootTimeout); // Clear timeout if prediction finishes before 3 seconds
     setIsLoading(false);
+    console.log("handleSubmit finished"); // ADDED LOG
   };
 
   return (
@@ -300,11 +340,17 @@ export default function SalaryForm() {
                 {isLoading ? 'Calculating...' : 'Submit'}
               </Button>
 
-              {prediction !== null && (
+              {predictions.US !== null && predictions.SG !== null && predictions.IN !== null && (
                 <Paper p="md" withBorder>
-                  <Title order={4}>Predicted Salary</Title>
-                  <Text size="xl" fw={700}>
-                    ${prediction.toLocaleString()}
+                  <Title order={4}>Predicted Salaries</Title>
+                  <Text size="lg" fw={500}>
+                    US: ${predictions.US.toLocaleString()}
+                  </Text>
+                  <Text size="lg" fw={500}>
+                    SG: ${predictions.SG.toLocaleString()}
+                  </Text>
+                  <Text size="lg" fw={500}>
+                    IN: ${predictions.IN.toLocaleString()}
                   </Text>
                 </Paper>
               )}
