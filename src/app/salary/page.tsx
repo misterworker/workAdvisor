@@ -1,4 +1,4 @@
-import { Container, Grid, SimpleGrid } from '@mantine/core';
+import { Container, SimpleGrid } from '@mantine/core';
 import SalaryForm from './SalaryForm';
 import Chat from './Chat';
 
