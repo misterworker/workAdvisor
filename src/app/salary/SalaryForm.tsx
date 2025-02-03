@@ -12,9 +12,7 @@ import {
   Text,
   Paper,
   Card,
-  rem,
   Grid,
-  Group,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { CheckCircle2, XCircle } from 'lucide-react';
