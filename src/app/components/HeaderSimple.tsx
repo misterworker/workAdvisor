@@ -1,7 +1,8 @@
 "use client"
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Burger, Container, Group } from '@mantine/core';
 import { useDisclosure, useWindowScroll } from '@mantine/hooks';
+import { usePathname } from 'next/navigation';
 import classes from './HeaderSimple.module.css';
 import { Briefcase } from 'lucide-react';
 import Link from 'next/link';
@@ -14,8 +15,8 @@ const links = [
 
 export function HeaderSimple() {
   const [opened, { toggle }] = useDisclosure(false);
-  const [active, setActive] = useState("");
   const [scroll] = useWindowScroll();
+  const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -33,10 +34,7 @@ export function HeaderSimple() {
       key={link.label}
       href={link.link}
       className={classes.link}
-      data-active={active === link.link || undefined}
-      onClick={() => {
-        setActive(link.link);
-      }}
+      data-active={pathname === link.link || undefined}
     >
       {link.label}
     </Link>
@@ -45,9 +43,7 @@ export function HeaderSimple() {
   return (
     <header className={`${classes.header} ${isVisible ? classes.visible : classes.hidden}`}>
       <Container size="md" className={classes.inner}>
-        <Link href="/" onClick={() => {
-          setActive("")
-        }}>
+        <Link href="/">
           <Briefcase />
         </Link>
         <Group gap={5} visibleFrom="xs">
