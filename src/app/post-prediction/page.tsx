@@ -1,118 +1,192 @@
-'use client';
+"use client";
 
 import React, { useState } from "react";
+import { Paper, Title, Stack, TextInput, Button, Select, Textarea, Loader, Text, Box } from "@mantine/core";
+
+// Helper function to format LLM response
+const formatLlmResponse = (response: string) => {
+  // 1. Bold formatting for text enclosed in **
+  let formattedResponse = response.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // 2. Convert URLs into clickable links
+  formattedResponse = formattedResponse.replace(
+    /(https?:\/\/[^\s]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline">$1</a>'
+  );
+
+  // 3. Add new lines when '-' is detected (indicating bullet points)
+  formattedResponse = formattedResponse.replace(/- /g, "<br>• ");
+
+  return formattedResponse;
+};
 
 export default function PostPredictionPage() {
   const [textInput, setTextInput] = useState("");
-  const [category, setCategory] = useState("A Levels");
-  const [predictedCategory, setPredictedCategory] = useState<string | null>(null);
+  const [postTitle, setPostTitle] = useState("");
+  const [category, setCategory] = useState("A Level");
   const [llmResponse, setLlmResponse] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<Record<string, any> | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handlePrediction = async (event: React.FormEvent) => {
     event.preventDefault();
+    setLoading(true);
 
     try {
       const response = await fetch("https://validate-post-78306345447.asia-southeast1.run.app/validate_post", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          content: textInput,
-          category,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: textInput, title: postTitle, category }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setPredictedCategory(category); // Use the selected category as the predicted one
-        setAnalysisResult(data.result); // Display the structured output
-        setLlmResponse(data.response); // Display the LLM response
+        const { ridiculous, leaks_pii, relevant_to_category } = data.result;
+
+        if (!ridiculous && !leaks_pii && relevant_to_category) {
+          const predictionResponse = await fetch("https://post-validation-78306345447.asia-southeast1.run.app/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ post_content: textInput, post_title: postTitle, category }),
+          });
+
+          if (predictionResponse.ok) {
+            const predictionData = await predictionResponse.json();
+            setAnalysisResult(predictionData);
+          } else {
+            const error = await predictionResponse.json();
+            setLlmResponse(`Error with prediction: ${error.error}`);
+          }
+        } else {
+          setAnalysisResult(null);
+        }
+        setLlmResponse(data.response);
       } else {
         const error = await response.json();
-        console.error("Error:", error.error);
         setLlmResponse(`Error: ${error.error}`);
       }
     } catch (error) {
-      console.error("Error connecting to server:", error);
       setLlmResponse("Error connecting to the server.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Left Section */}
-        <div className="flex-1 bg-gray-800 p-6 rounded-xl shadow-lg">
-          <h1 className="text-2xl font-bold mb-4">Post Prediction</h1>
-          <form onSubmit={handlePrediction} className="space-y-4">
-            <div>
-              <label htmlFor="category-select" className="block text-sm font-medium mb-1">
-                Select Category
-              </label>
-              <select
-                id="category-select"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full p-2 rounded-lg bg-gray-700 border border-gray-600"
-              >
-                <option value="A Levels">A Levels</option>
-                <option value="GCSE">GCSE</option>
-                <option value="Job Experience">Job Experience</option>
-                <option value="Studies">Studies</option>
-              </select>
-            </div>
+    <Paper shadow="xs" p="xl" radius="md" style={{ minHeight: "100vh", backgroundColor: "#1A1B1E" }}>
+      {/* Page Title */}
+      <Title order={2} mb="lg" c="white">
+        Post Prediction & Analysis
+      </Title>
 
-            <div>
-              <label htmlFor="text-input" className="block text-sm font-medium mb-1">
-                Enter Post Content
-              </label>
-              <textarea
-                id="text-input"
+      <Stack>
+        {/* Form Section */}
+        <Paper p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
+          <Title order={3} mb="md" c="white">
+            Enter Your Post Details
+          </Title>
+          <form onSubmit={handlePrediction}>
+            <Stack>
+              {/* Category Select */}
+              <Select
+                label="Select Category"
+                value={category}
+                onChange={(value) => setCategory(value || "A Level")}
+                data={["A Level", "GCSE", "Job Experience", "Study Support"]}
+                disabled={loading}
+                radius="md"
+              />
+
+              {/* Post Title */}
+              <TextInput
+                label="Post Title"
+                placeholder="Enter your post title"
+                value={postTitle}
+                onChange={(e) => setPostTitle(e.target.value)}
+                disabled={loading}
+                radius="md"
+              />
+
+              {/* Post Content */}
+              <Textarea
+                label="Post Content"
+                placeholder="Enter your post content"
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Enter your post content here"
-                required
-                className="w-full p-2 h-32 rounded-lg bg-gray-700 border border-gray-600"
+                minRows={4}
+                disabled={loading}
+                radius="md"
               />
-            </div>
 
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg"
-            >
-              Validate Post
-            </button>
+              {/* Submit Button */}
+              <Button type="submit" fullWidth color="blue" radius="md" disabled={loading}>
+                {loading ? <Loader size="sm" color="white" /> : "Validate Post"}
+              </Button>
+            </Stack>
           </form>
+        </Paper>
 
-          {predictedCategory && (
-            <div className="mt-6 bg-gray-700 p-4 rounded-lg">
-              <h2 className="text-lg font-semibold">Selected Category:</h2>
-              <p>{predictedCategory}</p>
-            </div>
-          )}
-        </div>
+        {/* Analysis Results */}
+        <Paper p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
+          <Title order={3} mb="md" c="white">
+            Analysis Result
+          </Title>
 
-        {/* Right Section */}
-        <div className="flex-1 bg-gray-800 p-6 rounded-xl shadow-lg">
-          <h2 className="text-xl font-bold mb-4">Analysis Result</h2>
           {analysisResult ? (
-            <pre className="bg-gray-700 p-4 rounded-lg overflow-auto">
-              {JSON.stringify(analysisResult, null, 2)}
-            </pre>
-          ) : (
-            <p className="text-gray-400">No analysis result available.</p>
-          )}
+            <Stack>
+              {analysisResult.predictions.map((prediction: any, index: number) => (
+                <Box key={index} style={{ backgroundColor: "#373A40", padding: "12px", borderRadius: "8px" }}>
+                  <Text size="sm" c="gray.3">
+                    Day {prediction.days_since_post}:
+                  </Text>
+                  <Text size="lg" c="blue.4">
+                    {prediction.predicted_class}
+                  </Text>
+                </Box>
+              ))}
 
-          <h2 className="text-xl font-bold mt-6 mb-4">LLM Response</h2>
-          {llmResponse ? (
-            <p className="bg-gray-700 p-4 rounded-lg">{llmResponse}</p>
+              {analysisResult.predictions.find((p: any) => p.days_since_post === 7) && (
+                <Box style={{ backgroundColor: "#1E88E5", padding: "16px", borderRadius: "8px", textAlign: "center" }}>
+                  <Text size="lg" c="white">
+                    Predicted Engagement after 7 days:{" "}
+                    {analysisResult.predictions.find((p: any) => p.days_since_post === 7).predicted_class}
+                  </Text>
+                </Box>
+              )}
+            </Stack>
           ) : (
-            <p className="text-gray-400">No response yet.</p>
+            <Text size="sm" c="gray.5">
+              Follow LLM instructions to improve your post!
+            </Text>
           )}
-        </div>
-      </div>
-    </div>
+        </Paper>
+
+        {/* AI Generated Feedback Section */}
+        <Paper p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
+          <Title order={3} mb="md" c="white">
+            AI Generated Feedback
+          </Title>
+          {llmResponse ? (
+            <Box
+              style={{
+                backgroundColor: "#373A40",
+                padding: "16px",
+                borderRadius: "8px",
+                color: "white",
+                fontSize: "14px",
+                lineHeight: "1.6",
+              }}
+              dangerouslySetInnerHTML={{
+                __html: formatLlmResponse(llmResponse),
+              }}
+            />
+          ) : (
+            <Text size="sm" c="gray.5">
+              No response yet. Please try submitting your post.
+            </Text>
+          )}
+        </Paper>
+      </Stack>
+    </Paper>
   );
 }
