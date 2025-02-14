@@ -24,14 +24,22 @@ import { HelpCircle } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useForm } from '@mantine/form';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 interface FormLabelProps {
   label: string;
   tooltip: string;
 }
 
-function FormLabel({ label, tooltip }: FormLabelProps) {
+interface FormLabelProps {
+  label: string;
+  tooltip: string;
+  style?: React.CSSProperties;
+}
+
+function FormLabel({ label, tooltip, style }: FormLabelProps) {
   const tooltipContent = tooltip.split('\n').map((line, index) => (
     <span key={index}>
       {line}
@@ -39,9 +47,8 @@ function FormLabel({ label, tooltip }: FormLabelProps) {
     </span>
   ));
 
-
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+    <Text component="div" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', ...style }}>
       {label}
       <Tooltip
         label={tooltipContent}
@@ -50,7 +57,7 @@ function FormLabel({ label, tooltip }: FormLabelProps) {
       >
         <HelpCircle size={16} style={{ cursor: 'help' }} />
       </Tooltip>
-    </div>
+    </Text>
   );
 }
 
@@ -58,6 +65,66 @@ import { predictSalary } from './actions';
 import { jobPresets, formTooltips } from './presets';
 
 export default function SalaryForm() {
+  const driverObj = React.useRef(
+    driver({
+      showProgress: true,
+      steps: [
+        {
+          popover: {
+            title: 'Welcome to Salary Predictor!',
+            description: 'Let me show you around our salary prediction tool.',
+            side: "bottom",
+            align: 'start'
+          }
+        },
+        {
+          element: '#preset-selector',
+          popover: {
+            title: 'Job Presets',
+            description: 'Start by selecting a job preset, or create your own custom prediction with the clear button.',
+            side: "top",
+            align: 'start'
+          }
+        },
+        {
+          element: '#form-section',
+          popover: {
+            title: 'Job Details',
+            description: 'Fill in the details about the job position you want to analyze.',
+            side: "left",
+            align: 'start'
+          }
+        },
+        {
+          element: '#countries-select',
+          popover: {
+            title: 'Select Countries',
+            description: 'Choose one or more countries to get salary predictions for different regions.',
+            side: "top",
+            align: 'start'
+          }
+        },
+        {
+          element: '#saved-predictions',
+          popover: {
+            title: 'Saved Predictions',
+            description: 'Your predictions will be saved here for future reference.',
+            side: "top",
+            align: 'start'
+          }
+        }
+      ]
+    })
+  );
+
+  useEffect(() => {
+    // Only show the tour if it's the user's first visit
+    const hasSeenTour = localStorage.getItem('hasSeenTour');
+    if (!hasSeenTour) {
+      driverObj.current.drive();
+      localStorage.setItem('hasSeenTour', 'true');
+    }
+  }, []);
   interface SavedPrediction {
     name: string;
     timestamp: number;
@@ -81,7 +148,6 @@ export default function SalaryForm() {
     min_years_experience: string;
     countries: string[];
     location_us: string[];
-    location_sg: string[];
     location_in: string[];
   }
 
@@ -97,7 +163,6 @@ export default function SalaryForm() {
       min_years_experience: '',
       countries: ['US', 'SG', 'IN'],
       location_us: [],
-      location_sg: [],
       location_in: [],
     },
     validate: {
@@ -190,7 +255,6 @@ export default function SalaryForm() {
         seniority: values.seniority,
         min_years_experience: values.min_years_experience,
         location_us: values.location_us,
-        location_sg: values.location_sg,
         location_in: values.location_in,
       };
 
@@ -279,36 +343,72 @@ export default function SalaryForm() {
 
   return (
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
-      <Title order={3} mb="md">Salary Prediction Form</Title>
+      <Group justify="space-between" mb="md">
+        <Title order={3} id="welcome-message">Salary Prediction Form</Title>
+        <Button
+          variant="subtle"
+          size="xs"
+          onClick={() => driverObj.current.drive()}
+        >
+          Show Tour
+        </Button>
+      </Group>
 
-      <Collapse in={!isLoading && formExpanded}>
-        <Select
-          label="Load Preset"
-          placeholder="Select a job preset"
-          mb="md"
-          value={selectedPreset}
-          clearable
-          data={[
-            { value: 'software_engineer', label: 'Software Engineer' },
-            { value: 'data_scientist', label: 'Data Scientist' },
-            { value: 'product_manager', label: 'Product Manager' },
-          ]}
-          onChange={(value) => {
-            setSelectedPreset(value || '');
-            if (value && jobPresets[value as keyof typeof jobPresets]) {
-              form.setValues(jobPresets[value as keyof typeof jobPresets]);
-            } else {
-              form.reset();
-            }
-          }}
-        />
+      <Collapse in={!isLoading && formExpanded}
+        id="preset-selector"
+      >
+        <Stack gap="xs">
+          <Group mb="md">
+            <Button
+              variant={selectedPreset === 'software_engineer' ? 'filled' : 'light'}
+              onClick={() => {
+                setSelectedPreset('software_engineer');
+                form.setValues(jobPresets.software_engineer);
+              }}
+              size="sm"
+            >
+              Software Engineer
+            </Button>
+            <Button
+              variant={selectedPreset === 'data_scientist' ? 'filled' : 'light'}
+              onClick={() => {
+                setSelectedPreset('data_scientist');
+                form.setValues(jobPresets.data_scientist);
+              }}
+              size="sm"
+            >
+              Data Scientist
+            </Button>
+            <Button
+              variant={selectedPreset === 'product_manager' ? 'filled' : 'light'}
+              onClick={() => {
+                setSelectedPreset('product_manager');
+                form.setValues(jobPresets.product_manager);
+              }}
+              size="sm"
+            >
+              Product Manager
+            </Button>
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={() => {
+                setSelectedPreset('');
+                form.reset();
+              }}
+              size="sm"
+            >
+              Clear
+            </Button>
+          </Group>
+        </Stack>
       </Collapse>
 
       <form onSubmit={form.onSubmit(handleSubmit)} style={{ marginTop: formExpanded ? 0 : '1rem' }}>
         <Card withBorder shadow="sm">
           <Stack gap="md">
-            <Collapse in={formExpanded}>
-              <Grid>
+            <Collapse in={formExpanded} id="form-section">
+              <Grid >
                 <Grid.Col span={6}>
                   <TextInput
                     label={
@@ -386,20 +486,71 @@ export default function SalaryForm() {
                   />
                 </Grid.Col>
 
-                <Grid.Col span={12}>
-                  <MultiSelect
-                    label={<FormLabel label="Countries" tooltip={formTooltips.countries} />}
-                    placeholder="Select at least one country for prediction"
-                    required
-                    error={form.errors.countries}
-                    data={[
-                      { value: 'US', label: 'United States' },
-                      { value: 'SG', label: 'Singapore' },
-                      { value: 'IN', label: 'India' },
-                    ]}
-                    defaultValue={['US', 'SG', 'IN']}
-                    {...form.getInputProps('countries')}
+                <Grid.Col span={12} id="countries-select">
+                  <FormLabel
+                    label="Countries"
+                    tooltip={formTooltips.countries}
+                    style={{
+                      fontSize: 'var(--mantine-font-size-sm)',
+                      fontWeight: 500,
+                      marginBottom: '0.25rem'
+                    }}
                   />
+                  <Group>
+                    <Button
+                      variant={form.values.countries.includes('US') ? 'filled' : 'light'}
+                      onClick={() => {
+                        const newCountries = form.values.countries.includes('US')
+                          ? form.values.countries.filter(c => c !== 'US')
+                          : [...form.values.countries, 'US'];
+                        form.setFieldValue('countries', newCountries);
+                      }}
+                      size="sm"
+                    >
+                      <Text style={{
+                        textDecoration: form.values.countries.includes('US') ? 'none' : 'line-through'
+                      }}>
+                        United States {form.values.countries.includes('US') && '✓'}
+                      </Text>
+                    </Button>
+                    <Button
+                      variant={form.values.countries.includes('SG') ? 'filled' : 'light'}
+                      onClick={() => {
+                        const newCountries = form.values.countries.includes('SG')
+                          ? form.values.countries.filter(c => c !== 'SG')
+                          : [...form.values.countries, 'SG'];
+                        form.setFieldValue('countries', newCountries);
+                      }}
+                      size="sm"
+                    >
+                      <Text style={{
+                        textDecoration: form.values.countries.includes('SG') ? 'none' : 'line-through'
+                      }}>
+                        Singapore {form.values.countries.includes('SG') && '✓'}
+                      </Text>
+                    </Button>
+                    <Button
+                      variant={form.values.countries.includes('IN') ? 'filled' : 'light'}
+                      onClick={() => {
+                        const newCountries = form.values.countries.includes('IN')
+                          ? form.values.countries.filter(c => c !== 'IN')
+                          : [...form.values.countries, 'IN'];
+                        form.setFieldValue('countries', newCountries);
+                      }}
+                      size="sm"
+                    >
+                      <Text style={{
+                        textDecoration: form.values.countries.includes('IN') ? 'none' : 'line-through'
+                      }}>
+                        India {form.values.countries.includes('IN') && '✓'}
+                      </Text>
+                    </Button>
+                  </Group>
+                  {form.errors.countries && (
+                    <Text c="red" size="sm">
+                      {form.errors.countries}
+                    </Text>
+                  )}
                 </Grid.Col>
 
                 {form.values.countries.includes('US') && (
@@ -420,25 +571,6 @@ export default function SalaryForm() {
                         'Denver',
                       ]}
                       {...form.getInputProps('location_us')}
-                    />
-                  </Grid.Col>
-                )}
-
-                {form.values.countries.includes('SG') && (
-                  <Grid.Col span={12}>
-                    <MultiSelect
-                      label={<FormLabel label="Singapore Locations" tooltip={formTooltips.location_sg} />}
-                      placeholder="Select locations in Singapore"
-                      searchable
-                      clearable
-                      data={[
-                        'Central Region',
-                        'East Region',
-                        'North Region',
-                        'North-East Region',
-                        'West Region',
-                      ]}
-                      {...form.getInputProps('location_sg')}
                     />
                   </Grid.Col>
                 )}
@@ -635,7 +767,7 @@ export default function SalaryForm() {
       </form>
 
       {savedPredictions.length > 0 && (
-        <Card withBorder mt="md">
+        <Card withBorder mt="md" id="saved-predictions">
           <Stack gap="md">
             <Group justify="space-between">
               <Title order={4}>Saved Predictions</Title>

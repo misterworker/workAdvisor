@@ -9,7 +9,6 @@ interface SalaryPredictionPayload {
   seniority: string;
   min_years_experience: string;
   location_us: string[];
-  location_sg: string[];
   location_in: string[];
 }
 
