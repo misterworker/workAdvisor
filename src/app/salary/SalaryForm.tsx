@@ -13,142 +13,192 @@ import {
   Paper,
   Card,
   Grid,
+  Tooltip,
+  Group,
 } from '@mantine/core';
+import { HelpCircle } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useForm } from '@mantine/form';
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
+
+interface FormLabelProps {
+  label: string;
+  tooltip: string;
+}
+
+function FormLabel({ label, tooltip }: FormLabelProps) {
+  const tooltipContent = tooltip.split('\n').map((line, index) => (
+    <span key={index}>
+      {line}
+      {index < tooltip.split('\n').length - 1 && <br />}
+    </span>
+  ));
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+      {label}
+      <Tooltip
+        label={tooltipContent}
+        position="top-start"
+        multiline
+      >
+        <HelpCircle size={16} style={{ cursor: 'help' }} />
+      </Tooltip>
+    </div>
+  );
+}
+
 import { predictSalary } from './actions';
-import { jobPresets } from './presets';
+import { jobPresets, formTooltips } from './presets';
 
 export default function SalaryForm() {
   interface FormValues {
-    job_description: string;
     job_title: string;
     query: string;
-    soft_skills: string[];
-    hard_skills: string[];
-    location_flexibility: string;
+    job_description: string;
     contract_type: string;
     education_level: string;
     seniority: string;
-    min_years_experience: number;
-    field_of_study: string[];
+    min_years_experience: string;
+    countries: string[];
+    location_us: string[];
+    location_sg: string[];
+    location_in: string[];
   }
 
-  const [selectedPreset, setSelectedPreset] = useState('data_scientist');
 
   const form = useForm<FormValues>({
     initialValues: {
-      job_description: '',
       job_title: '',
       query: '',
-      soft_skills: [] as string[],
-      hard_skills: [] as string[],
-      location_flexibility: 'unknown',
-      contract_type: 'unknown',
-      education_level: 'unknown',
-      seniority: 'unknown',
-      min_years_experience: 0,
-      field_of_study: [] as string[],
+      job_description: '',
+      contract_type: '',
+      education_level: '',
+      seniority: '',
+      min_years_experience: '',
+      countries: ['US', 'SG', 'IN'],
+      location_us: [],
+      location_sg: [],
+      location_in: [],
     },
+    validate: {
+      countries: (value) => value.length === 0 ? 'Please select at least one country' : null,
+    },
+    validateInputOnChange: true,
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState('');
 
-  // Load data scientist preset by default
-  useState(() => {
-    form.setValues(jobPresets.data_scientist);
-  });
-  const [predictions, setPredictions] = useState<{ [country: string]: number | null }>({
-    US: null,
-    SG: null,
-    IN: null,
-  });
+
+  const [predictions, setPredictions] = useState<{ [key: string]: number | null }>({});
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsLoading(true);
     setError(null);
-    setPredictions({ US: null, SG: null, IN: null });
+    setPredictions({});
 
-    const coldBootTimeout = setTimeout(() => {
-      if (predictions.US === null) {
-        console.log("Cold boot notification timeout triggered"); // ADDED LOG
-        notifications.show({
-          title: 'Model waking up',
-          message: 'The Salary AI was sleeping to conserve resources. It\'s waking up now!',
-          color: 'yellow',
-          icon: <XCircle size={18} />,
-          autoClose: 5000, // Automatically close after 5 seconds
-        });
+    console.log("handleSubmit started");
+
+    // Create a queue of all predictions we need to make
+    const predictionQueue: { country: string; location: string }[] = [];
+
+    for (const country_code of values.countries) {
+      const locationKey = `location_${country_code.toLowerCase()}` as keyof typeof values;
+      const locations = values[locationKey] as string[];
+
+      if (locations.length === 0) {
+        predictionQueue.push({ country: country_code, location: '' });
+      } else {
+        for (const location of locations) {
+          predictionQueue.push({ country: country_code, location });
+        }
       }
-    }, 1000); // 3 seconds
-    console.log("handleSubmit started"); // ADDED LOG
-
-
-    const countryCodes = ['US', 'SG', 'IN'];
-    const newPredictions: { [country: string]: { success: boolean; data?: any; error?: string | undefined } } = {};
-
-    for (const country_code of countryCodes) {
-      const payload = {
-        ...values,
-      };
-      console.log(`Fetching prediction for ${country_code}`); // ADDED LOG
-      newPredictions[country_code] = await predictSalary(payload, country_code);
-      console.log(`Prediction for ${country_code} returned`); // ADDED LOG
     }
 
-    let success = true;
-    let message = 'Predictions Complete:\n';
+    let completedPredictions = 0;
+    const totalPredictions = predictionQueue.length;
 
-    countryCodes.forEach((country_code) => {
-      const result = newPredictions[country_code];
-      if (result.success && result.data) {
-        setPredictions((prevPredictions) => ({
-          ...prevPredictions,
-          [country_code]: result.data.predicted_salary,
-        }));
-        message += `${country_code}: $${result.data.predicted_salary.toLocaleString()}\n`;
-      } else {
-        success = false;
-        setError(result.error || 'Failed to predict salary');
-        notifications.show({
-          title: 'Prediction Failed',
-          message: result.error || 'Failed to predict salary',
-          color: 'red',
-          icon: <XCircle size={18} />,
-        });
+    // Process all predictions concurrently
+    const allPromises = predictionQueue.map(async ({ country, location }) => {
+      const payload = {
+        job_title: values.job_title,
+        query: values.query,
+        job_description: values.job_description,
+        contract_type: values.contract_type,
+        education_level: values.education_level,
+        seniority: values.seniority,
+        min_years_experience: values.min_years_experience,
+        location_us: values.location_us,
+        location_sg: values.location_sg,
+        location_in: values.location_in,
+      };
+
+      const predictionKey = location ? `${country}-${location}` : country;
+      console.log(`Fetching prediction for ${predictionKey}`);
+
+      try {
+        const result = await predictSalary(payload, country, location);
+        completedPredictions++;
+
+        if (result.success && result.data) {
+          setPredictions(prev => ({
+            ...prev,
+            [predictionKey]: result.data.predicted_salary
+          }));
+
+          notifications.show({
+            title: 'Prediction Received',
+            message: `${predictionKey}: $${result.data.predicted_salary.toLocaleString()}`,
+            color: 'green',
+            icon: <CheckCircle2 size={18} />,
+            autoClose: 3000,
+          });
+        } else {
+          setError(prev => prev || result.error || 'Failed to predict salary');
+          notifications.show({
+            title: 'Prediction Failed',
+            message: `Failed for ${predictionKey}: ${result.error}`,
+            color: 'red',
+            icon: <XCircle size={18} />,
+          });
+        }
+      } catch (error) {
+        console.error(`Error predicting for ${predictionKey}:`, error);
       }
     });
 
-    if (success) {
+    await Promise.all(allPromises);
+
+    if (completedPredictions === totalPredictions) {
       notifications.show({
-        title: 'Predictions Complete',
-        message: message,
+        title: 'All Predictions Complete',
+        message: `Successfully processed ${completedPredictions} predictions`,
         color: 'green',
         icon: <CheckCircle2 size={18} />,
       });
     }
 
-    clearTimeout(coldBootTimeout); // Clear timeout if prediction finishes before 3 seconds
     setIsLoading(false);
-    console.log("handleSubmit finished"); // ADDED LOG
+    console.log("handleSubmit finished");
   };
 
   return (
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
       <Title order={3} mb="lg">Salary Prediction Form</Title>
+
       <Select
         label="Load Preset"
         placeholder="Select a job preset"
         mb="lg"
         value={selectedPreset}
+        clearable
         data={[
           { value: 'software_engineer', label: 'Software Engineer' },
           { value: 'data_scientist', label: 'Data Scientist' },
           { value: 'product_manager', label: 'Product Manager' },
-          { value: '', label: 'Custom' },
         ]}
         onChange={(value) => {
           setSelectedPreset(value || '');
@@ -159,176 +209,166 @@ export default function SalaryForm() {
           }
         }}
       />
+
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Card withBorder shadow="sm">
           <Stack gap="md">
             <Grid>
-              <Grid.Col span={12}>
+              <Grid.Col span={6}>
                 <TextInput
-                  label="Job Title"
+                  label={
+                    <FormLabel label="Job Title" tooltip={formTooltips.query} />
+                  }
                   placeholder="Enter job title"
-                  required
                   {...form.getInputProps('job_title')}
                 />
+              </Grid.Col>
 
-                <Textarea
-                  label="Job Description"
-                  placeholder="Enter job description"
-                  required
-                  minRows={3}
-                  {...form.getInputProps('job_description')}
-                />
-
+              <Grid.Col span={6}>
                 <TextInput
-                  label="Query"
+                  label={<FormLabel label="Query" tooltip={formTooltips.query} />}
                   placeholder="Enter query"
                   {...form.getInputProps('query')}
                 />
               </Grid.Col>
 
-              <Grid.Col span={6}>
-                <MultiSelect
-                  label="Soft Skills"
-                  placeholder="Select soft skills"
-                  styles={{
-                    input: { paddingRight: 30 },
-                  }}
-                  data={[
-                    'communication',
-                    'leadership',
-                    'teamwork',
-                    'problem solving',
-                    'time management',
-                    'analytical thinking',
-                    'research',
-                    'strategic thinking',
-                    'stakeholder management',
-                  ]}
-                  searchable
-                  clearable
-                  nothingFoundMessage="Nothing found..."
-                  {...form.getInputProps('soft_skills')}
+              <Grid.Col span={12}>
+                <Textarea
+                  label={<FormLabel label="Job Description" tooltip={formTooltips.job_description} />}
+                  placeholder="Enter job description"
+                  minRows={3}
+                  {...form.getInputProps('job_description')}
                 />
-
               </Grid.Col>
-              <Grid.Col span={6}>
-                <MultiSelect
-                  label="Hard Skills"
-                  placeholder="Select hard skills"
-                  styles={{
-                    input: { paddingRight: 30 },
-                  }}
-                  data={[
-                    'javascript',
-                    'python',
-                    'react',
-                    'node.js',
-                    'sql',
-                    'aws',
-                    'docker',
-                    'machine learning',
-                    'tensorflow',
-                    'agile',
-                    'jira',
-                    'product development',
-                    'market research',
-                  ]}
-                  searchable
-                  clearable
-                  nothingFoundMessage="Nothing found..."
-                  {...form.getInputProps('hard_skills')}
-                />
 
-              </Grid.Col>
+
+
               <Grid.Col span={6}>
                 <Select
-                  label="Location Flexibility"
-                  placeholder="Select location flexibility"
-                  data={[
-                    { value: 'remote', label: 'Remote' },
-                    { value: 'hybrid', label: 'Hybrid' },
-                    { value: 'onsite', label: 'Onsite' },
-                    { value: 'unknown', label: 'Unknown' },
-                  ]}
-                  {...form.getInputProps('location_flexibility')}
-                />
-
-              </Grid.Col>
-              <Grid.Col span={6}>
-                <Select
-                  label="Contract Type"
+                  label={<FormLabel label="Contract Type" tooltip={formTooltips.contract_type} />}
                   placeholder="Select contract type"
                   data={[
-                    { value: 'full_time', label: 'Full Time' },
-                    { value: 'part_time', label: 'Part Time' },
-                    { value: 'contract', label: 'Contract' },
-                    { value: 'unknown', label: 'Unknown' },
+                    { value: 'Full-time', label: 'Full Time' },
+                    { value: 'Part-time', label: 'Part Time' },
+                    { value: 'Contract', label: 'Contract' },
                   ]}
                   {...form.getInputProps('contract_type')}
                 />
-
               </Grid.Col>
+
               <Grid.Col span={6}>
                 <Select
-                  label="Education Level"
+                  label={<FormLabel label="Education Level" tooltip={formTooltips.education_level} />}
                   placeholder="Select education level"
                   data={[
-                    { value: 'high_school', label: 'High School' },
-                    { value: 'bachelors', label: 'Bachelor\'s Degree' },
-                    { value: 'masters', label: 'Master\'s Degree' },
-                    { value: 'phd', label: 'PhD' },
-                    { value: 'unknown', label: 'Unknown' },
+                    { value: "Bachelor's", label: "Bachelor's Degree" },
+                    { value: "Master's", label: "Master's Degree" },
+                    { value: 'PhD', label: 'PhD' },
                   ]}
                   {...form.getInputProps('education_level')}
                 />
-
               </Grid.Col>
+
               <Grid.Col span={6}>
                 <Select
-                  label="Seniority"
+                  label={<FormLabel label="Seniority" tooltip={formTooltips.seniority} />}
                   placeholder="Select seniority level"
                   data={[
-                    { value: 'entry', label: 'Entry Level' },
-                    { value: 'mid', label: 'Mid Level' },
-                    { value: 'senior', label: 'Senior Level' },
-                    { value: 'lead', label: 'Lead' },
-                    { value: 'unknown', label: 'Unknown' },
+                    { value: 'Entry', label: 'Entry Level' },
+                    { value: 'Mid', label: 'Mid Level' },
+                    { value: 'Senior', label: 'Senior Level' },
+                    { value: 'Lead', label: 'Lead' },
                   ]}
                   {...form.getInputProps('seniority')}
                 />
-
               </Grid.Col>
+
               <Grid.Col span={6}>
-                <NumberInput
-                  label="Minimum Years of Experience"
-                  placeholder="Enter minimum years of experience"
-                  min={0}
-                  decimalScale={1}
+                <TextInput
+                  label={<FormLabel label="Minimum Years of Experience" tooltip={formTooltips.min_years_experience} />}
+                  placeholder="Enter years of experience"
                   {...form.getInputProps('min_years_experience')}
                 />
-
               </Grid.Col>
-              <Grid.Col span={6}>
+
+              <Grid.Col span={12}>
                 <MultiSelect
-                  label="Field of Study"
-                  placeholder="Select field of study"
-                  styles={{
-                    input: { paddingRight: 30 },
-                  }}
+                  label={<FormLabel label="Countries" tooltip={formTooltips.countries} />}
+                  placeholder="Select at least one country for prediction"
+                  required
+                  error={form.errors.countries}
                   data={[
-                    'computer science',
-                    'software engineering',
-                    'data science',
-                    'statistics',
-                    'mathematics',
-                    'business administration',
-                    'engineering',
+                    { value: 'US', label: 'United States' },
+                    { value: 'SG', label: 'Singapore' },
+                    { value: 'IN', label: 'India' },
                   ]}
-                  searchable
-                  {...form.getInputProps('field_of_study')}
+                  defaultValue={['US', 'SG', 'IN']}
+                  {...form.getInputProps('countries')}
                 />
-
               </Grid.Col>
+
+              {form.values.countries.includes('US') && (
+                <Grid.Col span={12}>
+                  <MultiSelect
+                    label={<FormLabel label="US Locations" tooltip={formTooltips.location_us} />}
+                    placeholder="Select locations in United States"
+                    searchable
+                    clearable
+                    data={[
+                      'New York',
+                      'San Francisco',
+                      'Seattle',
+                      'Austin',
+                      'Boston',
+                      'Los Angeles',
+                      'Chicago',
+                      'Denver',
+                    ]}
+                    {...form.getInputProps('location_us')}
+                  />
+                </Grid.Col>
+              )}
+
+              {form.values.countries.includes('SG') && (
+                <Grid.Col span={12}>
+                  <MultiSelect
+                    label={<FormLabel label="Singapore Locations" tooltip={formTooltips.location_sg} />}
+                    placeholder="Select locations in Singapore"
+                    searchable
+                    clearable
+                    data={[
+                      'Central Region',
+                      'East Region',
+                      'North Region',
+                      'North-East Region',
+                      'West Region',
+                    ]}
+                    {...form.getInputProps('location_sg')}
+                  />
+                </Grid.Col>
+              )}
+
+              {form.values.countries.includes('IN') && (
+                <Grid.Col span={12}>
+                  <MultiSelect
+                    label={<FormLabel label="India Locations" tooltip={formTooltips.location_in} />}
+                    placeholder="Select locations in India"
+                    searchable
+                    clearable
+                    data={[
+                      'Bangalore',
+                      'Mumbai',
+                      'Delhi',
+                      'Hyderabad',
+                      'Chennai',
+                      'Pune',
+                      'Noida',
+                      'Gurgaon',
+                    ]}
+                    {...form.getInputProps('location_in')}
+                  />
+                </Grid.Col>
+              )}
             </Grid>
 
             <Stack>
@@ -340,18 +380,17 @@ export default function SalaryForm() {
                 {isLoading ? 'Calculating...' : 'Submit'}
               </Button>
 
-              {predictions.US !== null && predictions.SG !== null && predictions.IN !== null && (
+              {Object.keys(predictions).length > 0 && (
                 <Paper p="md" withBorder>
                   <Title order={4}>Predicted Salaries</Title>
-                  <Text size="lg" fw={500}>
-                    US: ${predictions.US.toLocaleString()}
-                  </Text>
-                  <Text size="lg" fw={500}>
-                    SG: ${predictions.SG.toLocaleString()}
-                  </Text>
-                  <Text size="lg" fw={500}>
-                    IN: ${predictions.IN.toLocaleString()}
-                  </Text>
+                  {Object.entries(predictions).map(([key, salary]) => {
+                    const [country, location] = key.split('-');
+                    return (
+                      <Text key={key} size="lg" fw={500}>
+                        {location ? `${country} - ${location}` : country}: ${salary?.toLocaleString() ?? 'N/A'}
+                      </Text>
+                    );
+                  })}
                 </Paper>
               )}
 
