@@ -15,12 +15,16 @@ import {
   Grid,
   Tooltip,
   Group,
+  Collapse,
+  UnstyledButton,
+  Progress,
 } from '@mantine/core';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { HelpCircle } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useForm } from '@mantine/form';
-import { useState, ReactNode } from 'react';
+import React, { useState, ReactNode } from 'react';
 
 interface FormLabelProps {
   label: string;
@@ -34,6 +38,7 @@ function FormLabel({ label, tooltip }: FormLabelProps) {
       {index < tooltip.split('\n').length - 1 && <br />}
     </span>
   ));
+
 
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -89,16 +94,44 @@ export default function SalaryForm() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState('software_engineer');
+  const [formExpanded, setFormExpanded] = useState(true);
 
 
-  const [predictions, setPredictions] = useState<{ [key: string]: number | null }>({});
+  const [predictions, setPredictions] = useState<{ [key: string]: { salary: number | null; duration: number; relativeDuration: number } }>({});
+  const [lastPredictionTime, setLastPredictionTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ completed: 0, total: 0 });
+  const [timer, setTimer] = useState(0);
+  const timerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = React.useRef<number>(0);
+
+  // Cleanup function to ensure interval is properly cleared
+  const clearCurrentInterval = () => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    setTimer(0);
+  };
+
+  // Start timer function
+  const startTimer = () => {
+    clearCurrentInterval();
+    startTimeRef.current = performance.now();
+    timerIntervalRef.current = setInterval(() => {
+      setTimer(performance.now() - startTimeRef.current);
+    }, 10);
+  };
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsLoading(true);
     setError(null);
     setPredictions({});
+    setFormExpanded(false);
+    setLastPredictionTime(null);
+    clearCurrentInterval();
+    let lastTime: number | null = null;
 
     console.log("handleSubmit started");
 
@@ -118,11 +151,15 @@ export default function SalaryForm() {
       }
     }
 
+    setProgress({ completed: 0, total: predictionQueue.length });
     let completedPredictions = 0;
     const totalPredictions = predictionQueue.length;
 
-    // Process all predictions concurrently
-    const allPromises = predictionQueue.map(async ({ country, location }) => {
+    // Process predictions sequentially
+    for (const { country, location } of predictionQueue) {
+      // Reset and start timer for each prediction
+      startTimer();
+
       const payload = {
         job_title: values.job_title,
         query: values.query,
@@ -140,18 +177,29 @@ export default function SalaryForm() {
       console.log(`Fetching prediction for ${predictionKey}`);
 
       try {
+        const currentTime = performance.now();
         const result = await predictSalary(payload, country, location);
+        const endTime = performance.now();
+        const duration = endTime - currentTime;
+        const relativeDuration = lastTime ? currentTime - lastTime : duration;
+        lastTime = currentTime;
+        clearCurrentInterval();
         completedPredictions++;
+        setProgress(prev => ({ ...prev, completed: completedPredictions }));
 
         if (result.success && result.data) {
           setPredictions(prev => ({
             ...prev,
-            [predictionKey]: result.data.predicted_salary
+            [predictionKey]: {
+              salary: result.data.predicted_salary,
+              duration: duration,
+              relativeDuration: relativeDuration
+            }
           }));
 
           notifications.show({
             title: 'Prediction Received',
-            message: `${predictionKey}: $${result.data.predicted_salary.toLocaleString()}`,
+            message: `${predictionKey}: $${result.data.predicted_salary.toLocaleString()} (${relativeDuration.toFixed(2)}ms)`,
             color: 'green',
             icon: <CheckCircle2 size={18} />,
             autoClose: 3000,
@@ -168,9 +216,7 @@ export default function SalaryForm() {
       } catch (error) {
         console.error(`Error predicting for ${predictionKey}:`, error);
       }
-    });
-
-    await Promise.all(allPromises);
+    }
 
     if (completedPredictions === totalPredictions) {
       notifications.show({
@@ -181,13 +227,41 @@ export default function SalaryForm() {
       });
     }
 
+    clearCurrentInterval();
     setIsLoading(false);
     console.log("handleSubmit finished");
   };
 
+
+  // Set initial preset values when component mounts
+  React.useEffect(() => {
+    if (jobPresets.software_engineer) {
+      form.setValues(jobPresets.software_engineer);
+    }
+  }, []);
+
+  // Cleanup intervals when component unmounts
+  React.useEffect(() => {
+    return () => {
+      clearCurrentInterval();
+    };
+  }, []);
+
   return (
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
-      <Title order={3} mb="lg">Salary Prediction Form</Title>
+      <UnstyledButton
+        onClick={() => setFormExpanded(!formExpanded)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem'
+        }}
+      >
+        <Title order={3}>Salary Prediction Form</Title>
+        {formExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+      </UnstyledButton>
 
       <Select
         label="Load Preset"
@@ -210,168 +284,186 @@ export default function SalaryForm() {
         }}
       />
 
-      <form onSubmit={form.onSubmit(handleSubmit)}>
+      <form onSubmit={form.onSubmit(handleSubmit)} style={{ marginTop: formExpanded ? 0 : '1rem' }}>
         <Card withBorder shadow="sm">
           <Stack gap="md">
-            <Grid>
-              <Grid.Col span={6}>
-                <TextInput
-                  label={
-                    <FormLabel label="Job Title" tooltip={formTooltips.query} />
-                  }
-                  placeholder="Enter job title"
-                  {...form.getInputProps('job_title')}
-                />
-              </Grid.Col>
-
-              <Grid.Col span={6}>
-                <TextInput
-                  label={<FormLabel label="Query" tooltip={formTooltips.query} />}
-                  placeholder="Enter query"
-                  {...form.getInputProps('query')}
-                />
-              </Grid.Col>
-
-              <Grid.Col span={12}>
-                <Textarea
-                  label={<FormLabel label="Job Description" tooltip={formTooltips.job_description} />}
-                  placeholder="Enter job description"
-                  minRows={3}
-                  {...form.getInputProps('job_description')}
-                />
-              </Grid.Col>
-
-
-
-              <Grid.Col span={6}>
-                <Select
-                  label={<FormLabel label="Contract Type" tooltip={formTooltips.contract_type} />}
-                  placeholder="Select contract type"
-                  data={[
-                    { value: 'Full-time', label: 'Full Time' },
-                    { value: 'Part-time', label: 'Part Time' },
-                    { value: 'Contract', label: 'Contract' },
-                  ]}
-                  {...form.getInputProps('contract_type')}
-                />
-              </Grid.Col>
-
-              <Grid.Col span={6}>
-                <Select
-                  label={<FormLabel label="Education Level" tooltip={formTooltips.education_level} />}
-                  placeholder="Select education level"
-                  data={[
-                    { value: "Bachelor's", label: "Bachelor's Degree" },
-                    { value: "Master's", label: "Master's Degree" },
-                    { value: 'PhD', label: 'PhD' },
-                  ]}
-                  {...form.getInputProps('education_level')}
-                />
-              </Grid.Col>
-
-              <Grid.Col span={6}>
-                <Select
-                  label={<FormLabel label="Seniority" tooltip={formTooltips.seniority} />}
-                  placeholder="Select seniority level"
-                  data={[
-                    { value: 'Entry', label: 'Entry Level' },
-                    { value: 'Mid', label: 'Mid Level' },
-                    { value: 'Senior', label: 'Senior Level' },
-                    { value: 'Lead', label: 'Lead' },
-                  ]}
-                  {...form.getInputProps('seniority')}
-                />
-              </Grid.Col>
-
-              <Grid.Col span={6}>
-                <TextInput
-                  label={<FormLabel label="Minimum Years of Experience" tooltip={formTooltips.min_years_experience} />}
-                  placeholder="Enter years of experience"
-                  {...form.getInputProps('min_years_experience')}
-                />
-              </Grid.Col>
-
-              <Grid.Col span={12}>
-                <MultiSelect
-                  label={<FormLabel label="Countries" tooltip={formTooltips.countries} />}
-                  placeholder="Select at least one country for prediction"
-                  required
-                  error={form.errors.countries}
-                  data={[
-                    { value: 'US', label: 'United States' },
-                    { value: 'SG', label: 'Singapore' },
-                    { value: 'IN', label: 'India' },
-                  ]}
-                  defaultValue={['US', 'SG', 'IN']}
-                  {...form.getInputProps('countries')}
-                />
-              </Grid.Col>
-
-              {form.values.countries.includes('US') && (
-                <Grid.Col span={12}>
-                  <MultiSelect
-                    label={<FormLabel label="US Locations" tooltip={formTooltips.location_us} />}
-                    placeholder="Select locations in United States"
-                    searchable
-                    clearable
-                    data={[
-                      'New York',
-                      'San Francisco',
-                      'Seattle',
-                      'Austin',
-                      'Boston',
-                      'Los Angeles',
-                      'Chicago',
-                      'Denver',
-                    ]}
-                    {...form.getInputProps('location_us')}
+            <Collapse in={formExpanded}>
+              <Grid>
+                <Grid.Col span={6}>
+                  <TextInput
+                    label={
+                      <FormLabel label="Job Title" tooltip={formTooltips.query} />
+                    }
+                    placeholder="Enter job title"
+                    {...form.getInputProps('job_title')}
                   />
                 </Grid.Col>
-              )}
 
-              {form.values.countries.includes('SG') && (
-                <Grid.Col span={12}>
-                  <MultiSelect
-                    label={<FormLabel label="Singapore Locations" tooltip={formTooltips.location_sg} />}
-                    placeholder="Select locations in Singapore"
-                    searchable
-                    clearable
-                    data={[
-                      'Central Region',
-                      'East Region',
-                      'North Region',
-                      'North-East Region',
-                      'West Region',
-                    ]}
-                    {...form.getInputProps('location_sg')}
+                <Grid.Col span={6}>
+                  <TextInput
+                    label={<FormLabel label="Query" tooltip={formTooltips.query} />}
+                    placeholder="Enter query"
+                    {...form.getInputProps('query')}
                   />
                 </Grid.Col>
-              )}
 
-              {form.values.countries.includes('IN') && (
                 <Grid.Col span={12}>
-                  <MultiSelect
-                    label={<FormLabel label="India Locations" tooltip={formTooltips.location_in} />}
-                    placeholder="Select locations in India"
-                    searchable
-                    clearable
-                    data={[
-                      'Bangalore',
-                      'Mumbai',
-                      'Delhi',
-                      'Hyderabad',
-                      'Chennai',
-                      'Pune',
-                      'Noida',
-                      'Gurgaon',
-                    ]}
-                    {...form.getInputProps('location_in')}
+                  <Textarea
+                    label={<FormLabel label="Job Description" tooltip={formTooltips.job_description} />}
+                    placeholder="Enter job description"
+                    minRows={3}
+                    {...form.getInputProps('job_description')}
                   />
                 </Grid.Col>
-              )}
-            </Grid>
 
+
+
+                <Grid.Col span={6}>
+                  <Select
+                    label={<FormLabel label="Contract Type" tooltip={formTooltips.contract_type} />}
+                    placeholder="Select contract type"
+                    data={[
+                      { value: 'Full-time', label: 'Full Time' },
+                      { value: 'Part-time', label: 'Part Time' },
+                      { value: 'Contract', label: 'Contract' },
+                    ]}
+                    {...form.getInputProps('contract_type')}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={6}>
+                  <Select
+                    label={<FormLabel label="Education Level" tooltip={formTooltips.education_level} />}
+                    placeholder="Select education level"
+                    data={[
+                      { value: "Bachelor's", label: "Bachelor's Degree" },
+                      { value: "Master's", label: "Master's Degree" },
+                      { value: 'PhD', label: 'PhD' },
+                    ]}
+                    {...form.getInputProps('education_level')}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={6}>
+                  <Select
+                    label={<FormLabel label="Seniority" tooltip={formTooltips.seniority} />}
+                    placeholder="Select seniority level"
+                    data={[
+                      { value: 'Entry', label: 'Entry Level' },
+                      { value: 'Mid', label: 'Mid Level' },
+                      { value: 'Senior', label: 'Senior Level' },
+                      { value: 'Lead', label: 'Lead' },
+                    ]}
+                    {...form.getInputProps('seniority')}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={6}>
+                  <TextInput
+                    label={<FormLabel label="Minimum Years of Experience" tooltip={formTooltips.min_years_experience} />}
+                    placeholder="Enter years of experience"
+                    {...form.getInputProps('min_years_experience')}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={12}>
+                  <MultiSelect
+                    label={<FormLabel label="Countries" tooltip={formTooltips.countries} />}
+                    placeholder="Select at least one country for prediction"
+                    required
+                    error={form.errors.countries}
+                    data={[
+                      { value: 'US', label: 'United States' },
+                      { value: 'SG', label: 'Singapore' },
+                      { value: 'IN', label: 'India' },
+                    ]}
+                    defaultValue={['US', 'SG', 'IN']}
+                    {...form.getInputProps('countries')}
+                  />
+                </Grid.Col>
+
+                {form.values.countries.includes('US') && (
+                  <Grid.Col span={12}>
+                    <MultiSelect
+                      label={<FormLabel label="US Locations" tooltip={formTooltips.location_us} />}
+                      placeholder="Select locations in United States"
+                      searchable
+                      clearable
+                      data={[
+                        'New York',
+                        'San Francisco',
+                        'Seattle',
+                        'Austin',
+                        'Boston',
+                        'Los Angeles',
+                        'Chicago',
+                        'Denver',
+                      ]}
+                      {...form.getInputProps('location_us')}
+                    />
+                  </Grid.Col>
+                )}
+
+                {form.values.countries.includes('SG') && (
+                  <Grid.Col span={12}>
+                    <MultiSelect
+                      label={<FormLabel label="Singapore Locations" tooltip={formTooltips.location_sg} />}
+                      placeholder="Select locations in Singapore"
+                      searchable
+                      clearable
+                      data={[
+                        'Central Region',
+                        'East Region',
+                        'North Region',
+                        'North-East Region',
+                        'West Region',
+                      ]}
+                      {...form.getInputProps('location_sg')}
+                    />
+                  </Grid.Col>
+                )}
+
+                {form.values.countries.includes('IN') && (
+                  <Grid.Col span={12}>
+                    <MultiSelect
+                      label={<FormLabel label="India Locations" tooltip={formTooltips.location_in} />}
+                      placeholder="Select locations in India"
+                      searchable
+                      clearable
+                      data={[
+                        'Bangalore',
+                        'Mumbai',
+                        'Delhi',
+                        'Hyderabad',
+                        'Chennai',
+                        'Pune',
+                        'Noida',
+                        'Gurgaon',
+                      ]}
+                      {...form.getInputProps('location_in')}
+                    />
+                  </Grid.Col>
+                )}
+              </Grid>
+
+            </Collapse>
             <Stack>
+              {isLoading && progress.total > 0 && (
+                <Stack gap="xs">
+                  <Progress
+                    value={(progress.completed / progress.total) * 100}
+                    animated
+                    size="xl"
+                    radius="xl"
+                  />
+                  <Text size="sm" ta="center">
+                    Processing {progress.completed} of {progress.total} predictions
+                  </Text>
+                  <Text size="sm" ta="center" c="dimmed">
+                    {(timer / 1000).toFixed(2)}s
+                  </Text>
+                </Stack>
+              )}
               <Button
                 type="submit"
                 mt="md"
@@ -383,11 +475,12 @@ export default function SalaryForm() {
               {Object.keys(predictions).length > 0 && (
                 <Paper p="md" withBorder>
                   <Title order={4}>Predicted Salaries</Title>
-                  {Object.entries(predictions).map(([key, salary]) => {
+                  {Object.entries(predictions).map(([key, data]) => {
                     const [country, location] = key.split('-');
                     return (
                       <Text key={key} size="lg" fw={500}>
-                        {location ? `${country} - ${location}` : country}: ${salary?.toLocaleString() ?? 'N/A'}
+                        {location ? `${country} - ${location}` : country}: ${data.salary?.toLocaleString() ?? 'N/A'}
+                        <Text span size="sm" c="dimmed"> ({data.relativeDuration.toFixed(2)}ms)</Text>
                       </Text>
                     );
                   })}
