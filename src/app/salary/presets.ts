@@ -6,9 +6,8 @@ export const formTooltips = {
   education_level: "Minimum education qualification required",
   seniority: "Level of experience and responsibility in the role",
   min_years_experience: "Minimum years of relevant work experience required",
-  countries: "Select countries for salary prediction. \nThe countries listed here will be looped in the prediction.",
+  countries: "Select countries for salary prediction. \nThe countries listed here will be looped in the prediction. \n Singapore is a small island, so there will be no location selection",
   location_us: "Specific cities or regions within the United States. \nIf there are no locations selected, the country will be predicted in general.",
-  location_sg: "Specific regions within Singapore. \nIf there are no locations selected, the country will be predicted in general.",
   location_in: "Specific cities or regions within in India. \nIf there are no locations selected, the country will be predicted in general."
 };
 

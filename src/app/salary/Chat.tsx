@@ -2,7 +2,7 @@
 "use client"
 
 import { useState } from 'react';
-import { Paper,   Title, Stack, TextInput, Button, ScrollArea, Text, Box } from '@mantine/core';
+import { Paper, Title, Stack, TextInput, Button, ScrollArea, Text, Box } from '@mantine/core';
 
 interface Message {
   content: string;
