@@ -19,6 +19,7 @@ import {
   Group,
 } from "@mantine/core";
 import { IconCheck, IconX, IconEdit } from "@tabler/icons-react";
+import PostTourComponent from '../components/post-tour';
 
 // Function to format AI response (clickable links, bullet points, bold text)
 const formatLlmResponse = (response: string) => {
@@ -189,7 +190,7 @@ export default function PostPredictionPage() {
                 </Notification>
               )}
               <form onSubmit={handlePrediction}>
-                <Stack>
+                <Stack id="craft-post">
                   {/* Category Select */}
                   <Select
                     label="Select Category"
@@ -230,7 +231,7 @@ export default function PostPredictionPage() {
                   />
 
                   {/* Submit Button */}
-                  <Button type="submit" fullWidth color="blue" radius="md" disabled={loading || isUpdating}>
+                  <Button id = "validate-button" type="submit" fullWidth color="blue" radius="md" disabled={loading || isUpdating}>
                     {loading ? <Loader size="sm" color="white" /> : "Validate Post"}
                   </Button>
                 </Stack>
@@ -238,7 +239,7 @@ export default function PostPredictionPage() {
             </Paper>
 
             {/* AI Feedback Section */}
-            <Paper p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
+            <Paper id = "ai" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
               <Group>
                 <Title order={3} c="white">
                   AI Generated Feedback
@@ -255,7 +256,7 @@ export default function PostPredictionPage() {
                         </ActionIcon>
                       </>
                     ) : (
-                      <ActionIcon color="blue" onClick={handleUpdateClick}>
+                      <ActionIcon id = "suggestion-button" color="blue" onClick={handleUpdateClick}>
                         <IconEdit />
                       </ActionIcon>
                     )}
@@ -276,7 +277,7 @@ export default function PostPredictionPage() {
 
         {/* Right Side (Analysis Result + History) */}
         <Grid.Col span={{ base: 12, md: 4 }}>
-        <Paper p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
+        <Paper id = "analysis-result" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
             <Title order={3} mb="md" c="white">
               Analysis Result
             </Title>
@@ -313,7 +314,7 @@ export default function PostPredictionPage() {
             )}
           </Paper>
           {/* Past Analyses (Inside a Scrollable Box) */}
-          <Paper p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33", marginTop: "20px" }}>
+          <Paper id = "history" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33", marginTop: "20px" }}>
             {!isConfirmingClearHistory ? (
               <Button
                 fullWidth
@@ -381,6 +382,7 @@ export default function PostPredictionPage() {
           </Paper>
         </Grid.Col>
       </Grid>
+      <PostTourComponent />
     </Paper>
   );
 }
