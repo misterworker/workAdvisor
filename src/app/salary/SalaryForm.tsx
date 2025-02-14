@@ -24,7 +24,7 @@ import { HelpCircle } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useForm } from '@mantine/form';
-import React, { useState, ReactNode } from 'react';
+import React, { useState } from 'react';
 
 interface FormLabelProps {
   label: string;
@@ -103,8 +103,10 @@ export default function SalaryForm() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [timer, setTimer] = useState(0);
+  const [showProgress, setShowProgress] = useState(false);
   const timerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = React.useRef<number>(0);
+  const fadeTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup function to ensure interval is properly cleared
   const clearCurrentInterval = () => {
@@ -152,6 +154,7 @@ export default function SalaryForm() {
     }
 
     setProgress({ completed: 0, total: predictionQueue.length });
+    setShowProgress(true);
     let completedPredictions = 0;
     const totalPredictions = predictionQueue.length;
 
@@ -196,14 +199,6 @@ export default function SalaryForm() {
               relativeDuration: relativeDuration
             }
           }));
-
-          notifications.show({
-            title: 'Prediction Received',
-            message: `${predictionKey}: $${result.data.predicted_salary.toLocaleString()} (${relativeDuration.toFixed(2)}ms)`,
-            color: 'green',
-            icon: <CheckCircle2 size={18} />,
-            autoClose: 3000,
-          });
         } else {
           setError(prev => prev || result.error || 'Failed to predict salary');
           notifications.show({
@@ -229,6 +224,15 @@ export default function SalaryForm() {
 
     clearCurrentInterval();
     setIsLoading(false);
+
+    // Keep progress visible then fade out
+    if (fadeTimeoutRef.current) {
+      clearTimeout(fadeTimeoutRef.current);
+    }
+    fadeTimeoutRef.current = setTimeout(() => {
+      setShowProgress(false);
+    }, 1000);
+
     console.log("handleSubmit finished");
   };
 
@@ -240,28 +244,19 @@ export default function SalaryForm() {
     }
   }, []);
 
-  // Cleanup intervals when component unmounts
+  // Cleanup intervals and timeouts when component unmounts
   React.useEffect(() => {
     return () => {
       clearCurrentInterval();
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+      }
     };
   }, []);
 
   return (
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
-      <UnstyledButton
-        onClick={() => setFormExpanded(!formExpanded)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1rem'
-        }}
-      >
-        <Title order={3}>Salary Prediction Form</Title>
-        {formExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-      </UnstyledButton>
+      <Title order={3} mb="md">Salary Prediction Form</Title>
 
       <Select
         label="Load Preset"
@@ -448,42 +443,107 @@ export default function SalaryForm() {
 
             </Collapse>
             <Stack>
-              {isLoading && progress.total > 0 && (
-                <Stack gap="xs">
+              <Collapse in={showProgress}>
+                <Stack gap="xs" style={{ transition: 'opacity 0.5s ease-out' }}>
                   <Progress
                     value={(progress.completed / progress.total) * 100}
-                    animated
+                    animated={isLoading}
                     size="xl"
                     radius="xl"
                   />
                   <Text size="sm" ta="center">
-                    Processing {progress.completed} of {progress.total} predictions
+                    {isLoading ?
+                      `Processing ${progress.completed} of ${progress.total} predictions` :
+                      `Completed ${progress.total} predictions`
+                    }
                   </Text>
                   <Text size="sm" ta="center" c="dimmed">
                     {(timer / 1000).toFixed(2)}s
                   </Text>
                 </Stack>
+              </Collapse>
+              {Object.keys(predictions).length > 0 ? (
+                <Button
+                  mt="md"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setPredictions({});
+                    setError(null);
+                    setFormExpanded(true);
+                  }}
+                  type="button"
+                  color="gray"
+                >
+                  Start New Prediction
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  mt="md"
+                  loading={isLoading}
+                >
+                  {isLoading ? 'Calculating...' : 'Submit'}
+                </Button>
               )}
-              <Button
-                type="submit"
-                mt="md"
-                loading={isLoading}
-              >
-                {isLoading ? 'Calculating...' : 'Submit'}
-              </Button>
 
               {Object.keys(predictions).length > 0 && (
                 <Paper p="md" withBorder>
-                  <Title order={4}>Predicted Salaries</Title>
-                  {Object.entries(predictions).map(([key, data]) => {
-                    const [country, location] = key.split('-');
-                    return (
-                      <Text key={key} size="lg" fw={500}>
-                        {location ? `${country} - ${location}` : country}: ${data.salary?.toLocaleString() ?? 'N/A'}
-                        <Text span size="sm" c="dimmed"> ({data.relativeDuration.toFixed(2)}ms)</Text>
-                      </Text>
-                    );
-                  })}
+                  <Title order={4} mb="md">Predicted Salaries</Title>
+                  <Grid>
+                    {['US', 'SG', 'IN'].filter(country =>
+                      Object.keys(predictions).some(key => key.startsWith(country))
+                    ).map(country => (
+                      <Grid.Col key={country} span={{ base: 12, sm: 6, lg: 4 }}>
+                        <Card withBorder shadow="sm">
+                          <Stack gap="xs">
+                            <Group justify="space-between">
+                              <Stack gap="xs">
+                                <Title order={5}>
+                                  {country === 'US' ? 'United States' :
+                                    country === 'SG' ? 'Singapore' :
+                                      'India'}
+                                </Title>
+                                {predictions[country]?.salary && (
+                                  <Stack gap={0}>
+                                    <Text fw={700} size="lg" c="blue" ta="right">
+                                      ${predictions[country].salary.toLocaleString()}
+                                    </Text>
+                                    <Text size="xs" c="dimmed" ta="left">
+                                      {(predictions[country].relativeDuration / 1000).toFixed(2)}s
+                                    </Text>
+                                  </Stack>
+                                )}
+                              </Stack>
+                            </Group>
+
+                            {/* Location-specific predictions */}
+                            {Object.entries(predictions)
+                              .filter(([key]) => key.startsWith(country) && key !== country)
+                              .map(([key, data]) => {
+                                const location = key.split('-')[1];
+                                return (
+                                  <Card key={key} withBorder p="xs">
+                                    <Group justify="space-between" wrap="nowrap">
+                                      <Text fw={500} size="sm" style={{ flex: 1 }}>
+                                        {location}
+                                      </Text>
+                                      <Stack gap={0} align="flex-end">
+                                        <Text fw={700} size="sm">
+                                          ${data.salary?.toLocaleString() ?? 'N/A'}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                          {(data.relativeDuration / 1000).toFixed(2)}s
+                                        </Text>
+                                      </Stack>
+                                    </Group>
+                                  </Card>
+                                );
+                              })}
+                          </Stack>
+                        </Card>
+                      </Grid.Col>
+                    ))}
+                  </Grid>
                 </Paper>
               )}
 
