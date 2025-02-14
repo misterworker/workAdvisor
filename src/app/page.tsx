@@ -28,7 +28,7 @@ export default function Home() {
           </Button>
           <Button
             component={Link}
-            href="/post-predicton"
+            href="/post-prediction"
             size="lg"
             variant="gradient"
             gradient={{ from: 'violet', to: 'grape', deg: 45 }}
