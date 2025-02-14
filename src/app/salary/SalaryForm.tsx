@@ -58,6 +58,19 @@ import { predictSalary } from './actions';
 import { jobPresets, formTooltips } from './presets';
 
 export default function SalaryForm() {
+  interface SavedPrediction {
+    name: string;
+    timestamp: number;
+    predictions: {
+      [key: string]: {
+        salary: number | null;
+        duration: number;
+        relativeDuration: number;
+      };
+    };
+    formValues: FormValues;
+  }
+
   interface FormValues {
     job_title: string;
     query: string;
@@ -100,7 +113,10 @@ export default function SalaryForm() {
 
   const [predictions, setPredictions] = useState<{ [key: string]: { salary: number | null; duration: number; relativeDuration: number } }>({});
   const [lastPredictionTime, setLastPredictionTime] = useState<number | null>(null);
+  const [lastEndTime, setLastEndTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savedPredictions, setSavedPredictions] = useState<SavedPrediction[]>([]);
+  const [savePredictionName, setSavePredictionName] = useState('');
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [timer, setTimer] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
@@ -132,8 +148,10 @@ export default function SalaryForm() {
     setPredictions({});
     setFormExpanded(false);
     setLastPredictionTime(null);
+    setLastEndTime(null);
+    setProgress({ completed: 0, total: 0 });
+    setTimer(0);
     clearCurrentInterval();
-    let lastTime: number | null = null;
 
     console.log("handleSubmit started");
 
@@ -180,12 +198,12 @@ export default function SalaryForm() {
       console.log(`Fetching prediction for ${predictionKey}`);
 
       try {
-        const currentTime = performance.now();
+        const startTime = performance.now();
         const result = await predictSalary(payload, country, location);
         const endTime = performance.now();
-        const duration = endTime - currentTime;
-        const relativeDuration = lastTime ? currentTime - lastTime : duration;
-        lastTime = currentTime;
+        const duration = endTime - startTime;
+        const relativeDuration = lastEndTime ? startTime - lastEndTime : duration;
+        setLastEndTime(endTime);
         clearCurrentInterval();
         completedPredictions++;
         setProgress(prev => ({ ...prev, completed: completedPredictions }));
@@ -238,7 +256,12 @@ export default function SalaryForm() {
 
 
   // Set initial preset values when component mounts
+  // Load saved predictions from localStorage
   React.useEffect(() => {
+    const saved = localStorage.getItem('savedPredictions');
+    if (saved) {
+      setSavedPredictions(JSON.parse(saved));
+    }
     if (jobPresets.software_engineer) {
       form.setValues(jobPresets.software_engineer);
     }
@@ -258,26 +281,28 @@ export default function SalaryForm() {
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
       <Title order={3} mb="md">Salary Prediction Form</Title>
 
-      <Select
-        label="Load Preset"
-        placeholder="Select a job preset"
-        mb="lg"
-        value={selectedPreset}
-        clearable
-        data={[
-          { value: 'software_engineer', label: 'Software Engineer' },
-          { value: 'data_scientist', label: 'Data Scientist' },
-          { value: 'product_manager', label: 'Product Manager' },
-        ]}
-        onChange={(value) => {
-          setSelectedPreset(value || '');
-          if (value && jobPresets[value as keyof typeof jobPresets]) {
-            form.setValues(jobPresets[value as keyof typeof jobPresets]);
-          } else {
-            form.reset();
-          }
-        }}
-      />
+      <Collapse in={!isLoading && formExpanded}>
+        <Select
+          label="Load Preset"
+          placeholder="Select a job preset"
+          mb="md"
+          value={selectedPreset}
+          clearable
+          data={[
+            { value: 'software_engineer', label: 'Software Engineer' },
+            { value: 'data_scientist', label: 'Data Scientist' },
+            { value: 'product_manager', label: 'Product Manager' },
+          ]}
+          onChange={(value) => {
+            setSelectedPreset(value || '');
+            if (value && jobPresets[value as keyof typeof jobPresets]) {
+              form.setValues(jobPresets[value as keyof typeof jobPresets]);
+            } else {
+              form.reset();
+            }
+          }}
+        />
+      </Collapse>
 
       <form onSubmit={form.onSubmit(handleSubmit)} style={{ marginTop: formExpanded ? 0 : '1rem' }}>
         <Card withBorder shadow="sm">
@@ -440,122 +465,254 @@ export default function SalaryForm() {
                   </Grid.Col>
                 )}
               </Grid>
-
             </Collapse>
-            <Stack>
-              <Collapse in={showProgress}>
-                <Stack gap="xs" style={{ transition: 'opacity 0.5s ease-out' }}>
-                  <Progress
-                    value={(progress.completed / progress.total) * 100}
-                    animated={isLoading}
-                    size="xl"
-                    radius="xl"
-                  />
-                  <Text size="sm" ta="center">
-                    {isLoading ?
-                      `Processing ${progress.completed} of ${progress.total} predictions` :
-                      `Completed ${progress.total} predictions`
-                    }
-                  </Text>
-                  <Text size="sm" ta="center" c="dimmed">
-                    {(timer / 1000).toFixed(2)}s
-                  </Text>
-                </Stack>
-              </Collapse>
-              {Object.keys(predictions).length > 0 ? (
-                <Button
-                  mt="md"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setPredictions({});
-                    setError(null);
-                    setFormExpanded(true);
-                  }}
-                  type="button"
-                  color="gray"
-                >
-                  Start New Prediction
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  mt="md"
-                  loading={isLoading}
-                >
-                  {isLoading ? 'Calculating...' : 'Submit'}
-                </Button>
-              )}
 
-              {Object.keys(predictions).length > 0 && (
-                <Paper p="md" withBorder>
-                  <Title order={4} mb="md">Predicted Salaries</Title>
-                  <Grid>
-                    {['US', 'SG', 'IN'].filter(country =>
-                      Object.keys(predictions).some(key => key.startsWith(country))
-                    ).map(country => (
-                      <Grid.Col key={country} span={{ base: 12, sm: 6, lg: 4 }}>
-                        <Card withBorder shadow="sm">
-                          <Stack gap="xs">
-                            <Group justify="space-between">
-                              <Stack gap="xs">
-                                <Title order={5}>
-                                  {country === 'US' ? 'United States' :
-                                    country === 'SG' ? 'Singapore' :
-                                      'India'}
-                                </Title>
-                                {predictions[country]?.salary && (
-                                  <Stack gap={0}>
-                                    <Text fw={700} size="lg" c="blue" ta="right">
-                                      ${predictions[country].salary.toLocaleString()}
-                                    </Text>
-                                    <Text size="xs" c="dimmed" ta="left">
-                                      {(predictions[country].relativeDuration / 1000).toFixed(2)}s
-                                    </Text>
-                                  </Stack>
-                                )}
-                              </Stack>
-                            </Group>
-
-                            {/* Location-specific predictions */}
-                            {Object.entries(predictions)
-                              .filter(([key]) => key.startsWith(country) && key !== country)
-                              .map(([key, data]) => {
-                                const location = key.split('-')[1];
-                                return (
-                                  <Card key={key} withBorder p="xs">
-                                    <Group justify="space-between" wrap="nowrap">
-                                      <Text fw={500} size="sm" style={{ flex: 1 }}>
-                                        {location}
-                                      </Text>
-                                      <Stack gap={0} align="flex-end">
-                                        <Text fw={700} size="sm">
-                                          ${data.salary?.toLocaleString() ?? 'N/A'}
-                                        </Text>
-                                        <Text size="xs" c="dimmed">
-                                          {(data.relativeDuration / 1000).toFixed(2)}s
-                                        </Text>
-                                      </Stack>
-                                    </Group>
-                                  </Card>
-                                );
-                              })}
-                          </Stack>
-                        </Card>
-                      </Grid.Col>
-                    ))}
-                  </Grid>
-                </Paper>
-              )}
-
-              {error && (
-                <Text c="red" size="sm">
-                  {error}
+            <Collapse in={showProgress}>
+              <Stack gap="xs" style={{ transition: 'opacity 0.5s ease-out' }}>
+                <Progress
+                  value={(progress.completed / progress.total) * 100}
+                  animated={isLoading}
+                  size="xl"
+                  radius="xl"
+                />
+                <Text size="sm" ta="center">
+                  {isLoading ?
+                    `Processing ${progress.completed} of ${progress.total} predictions` :
+                    `Completed ${progress.total} predictions`
+                  }
                 </Text>
-              )}
-            </Stack>
+                <Text size="sm" ta="center" c="dimmed">
+                  {(timer / 1000).toFixed(2)}s
+                </Text>
+              </Stack>
+            </Collapse>
+            {Object.keys(predictions).length > 0 ? (
+              <Button
+                onClick={(e) => {
+                  e.preventDefault();
+                  setPredictions({});
+                  setError(null);
+                  setFormExpanded(true);
+                  setLastPredictionTime(null);
+                  setLastEndTime(null);
+                  setProgress({ completed: 0, total: 0 });
+                  setTimer(0);
+                  setShowProgress(false);
+                  clearCurrentInterval();
+                }}
+                type="button"
+                color="gray"
+              >
+                Start New Prediction
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                mt="md"
+                loading={isLoading}
+              >
+                {isLoading ? 'Calculating...' : 'Submit'}
+              </Button>
+            )}
+
+            {Object.keys(predictions).length > 0 && (
+              <Paper p="md" withBorder>
+                <Title order={4} mb="md">Predicted Salaries</Title>
+                <Grid>
+                  {['US', 'SG', 'IN'].filter(country =>
+                    Object.keys(predictions).some(key => key.startsWith(country))
+                  ).map(country => (
+                    <Grid.Col key={country} span={{ base: 12, sm: 6, lg: 4 }}>
+                      <Card withBorder shadow="sm">
+                        <Stack gap="xs">
+                          <Group justify="space-between">
+                            <Stack gap="xs">
+                              <Title order={5}>
+                                {country === 'US' ? 'United States' :
+                                  country === 'SG' ? 'Singapore' :
+                                    'India'}
+                              </Title>
+                              {predictions[country]?.salary && (
+                                <Stack gap={0}>
+                                  <Text fw={700} size="lg" c="blue" ta="right">
+                                    ${predictions[country].salary.toLocaleString()}
+                                  </Text>
+                                  <Text size="xs" c="dimmed" ta="left">
+                                    {(predictions[country].relativeDuration / 1000).toFixed(2)}s
+                                  </Text>
+                                </Stack>
+                              )}
+                            </Stack>
+                          </Group>
+
+                          {/* Location-specific predictions */}
+                          {Object.entries(predictions)
+                            .filter(([key]) => key.startsWith(country) && key !== country)
+                            .map(([key, data]) => {
+                              const location = key.split('-')[1];
+                              return (
+                                <Card key={key} withBorder p="xs">
+                                  <Group justify="space-between" wrap="nowrap">
+                                    <Text fw={500} size="sm" style={{ flex: 1 }}>
+                                      {location}
+                                    </Text>
+                                    <Stack gap={0} align="flex-end">
+                                      <Text fw={700} size="sm">
+                                        ${data.salary?.toLocaleString() ?? 'N/A'}
+                                      </Text>
+                                      <Text size="xs" c="dimmed">
+                                        {(data.relativeDuration / 1000).toFixed(2)}s
+                                      </Text>
+                                    </Stack>
+                                  </Group>
+                                </Card>
+                              );
+                            })}
+                        </Stack>
+                      </Card>
+                    </Grid.Col>
+                  ))}
+                </Grid>
+              </Paper>
+            )}
+
+            {Object.keys(predictions).length > 0 && (
+              <Card withBorder>
+                <Stack gap="md">
+                  <Title order={4}>Save Prediction</Title>
+                  <Group>
+                    <TextInput
+                      placeholder="Enter a name for this prediction"
+                      value={savePredictionName}
+                      onChange={(event) => setSavePredictionName(event.currentTarget.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      onClick={() => {
+                        if (!savePredictionName.trim()) {
+                          notifications.show({
+                            title: 'Error',
+                            message: 'Please enter a name for the prediction',
+                            color: 'red',
+                          });
+                          return;
+                        }
+
+                        const newSavedPrediction: SavedPrediction = {
+                          name: savePredictionName,
+                          timestamp: Date.now(),
+                          predictions,
+                          formValues: form.values,
+                        };
+
+                        const updatedSavedPredictions = [...savedPredictions, newSavedPrediction];
+                        setSavedPredictions(updatedSavedPredictions);
+                        localStorage.setItem('savedPredictions', JSON.stringify(updatedSavedPredictions));
+
+                        setSavePredictionName('');
+                        notifications.show({
+                          title: 'Success',
+                          message: 'Prediction saved successfully',
+                          color: 'green',
+                        });
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </Group>
+                </Stack>
+              </Card>
+            )}
+
+
+            {error && (
+              <Text c="red" size="sm">
+                {error}
+              </Text>
+            )}
           </Stack>
         </Card>
       </form>
+
+      {savedPredictions.length > 0 && (
+        <Card withBorder mt="md">
+          <Stack gap="md">
+            <Group justify="space-between">
+              <Title order={4}>Saved Predictions</Title>
+              <Text size="sm" c="dimmed">{savedPredictions.length} saved</Text>
+            </Group>
+            <Grid>
+              {savedPredictions
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .map((saved, index) => (
+                  <Grid.Col key={index} span={{ base: 12, sm: 6, lg: 4 }}>
+                    <Card withBorder shadow="sm">
+                      <Stack gap="md">
+                        <Group justify="space-between" wrap="nowrap">
+                          <Stack gap={2}>
+                            <Text fw={700} truncate>
+                              {saved.name}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {new Date(saved.timestamp).toLocaleString()}
+                            </Text>
+                          </Stack>
+                        </Group>
+
+                        <Stack gap="xs">
+                          <Text size="sm">
+                            {saved.formValues.job_title || saved.formValues.query}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {Object.keys(saved.predictions).length} predictions
+                          </Text>
+                        </Stack>
+
+                        <Group grow>
+                          <Button
+                            variant="light"
+                            size="xs"
+                            onClick={() => {
+                              setPredictions(saved.predictions);
+                              form.setValues(saved.formValues);
+                              setFormExpanded(false);
+                              notifications.show({
+                                title: 'Prediction Loaded',
+                                message: `Loaded "${saved.name}"`,
+                                color: 'blue',
+                              });
+                            }}
+                          >
+                            Load
+                          </Button>
+                          <Button
+                            variant="light"
+                            color="red"
+                            size="xs"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete "${saved.name}"?`)) {
+                                const updatedSavedPredictions = savedPredictions.filter((_, i) => i !== index);
+                                setSavedPredictions(updatedSavedPredictions);
+                                localStorage.setItem('savedPredictions', JSON.stringify(updatedSavedPredictions));
+                                notifications.show({
+                                  title: 'Deleted',
+                                  message: `Deleted "${saved.name}"`,
+                                  color: 'red',
+                                });
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </Group>
+                      </Stack>
+                    </Card>
+                  </Grid.Col>
+                ))}
+            </Grid>
+          </Stack>
+        </Card>
+      )}
     </Paper>
   );
 }
