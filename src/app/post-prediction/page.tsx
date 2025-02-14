@@ -100,7 +100,7 @@ export default function PostPredictionPage() {
 
   return (
     <Paper shadow="xs" p="xl" radius="md" style={{ minHeight: "100vh", backgroundColor: "#1A1B1E" }}>
-      <Title order={2} align="center" mb="lg" c="white">
+      <Title order={2} mb="lg" c="white" style={{ textAlign: "center" }}>
         Post Prediction & Analysis
       </Title>
 
