@@ -24,7 +24,9 @@ import { HelpCircle } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useForm } from '@mantine/form';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 interface FormLabelProps {
   label: string;
@@ -58,6 +60,66 @@ import { predictSalary } from './actions';
 import { jobPresets, formTooltips } from './presets';
 
 export default function SalaryForm() {
+  const driverObj = React.useRef(
+    driver({
+      showProgress: true,
+      steps: [
+        {
+          popover: {
+            title: 'Welcome to Salary Predictor!',
+            description: 'Let me show you around our salary prediction tool.',
+            side: "bottom",
+            align: 'start'
+          }
+        },
+        {
+          element: '#preset-selector',
+          popover: {
+            title: 'Job Presets',
+            description: 'Start by selecting a job preset, or create your own custom prediction.',
+            side: "bottom",
+            align: 'start'
+          }
+        },
+        {
+          element: '#form-section',
+          popover: {
+            title: 'Job Details',
+            description: 'Fill in the details about the job position you want to analyze.',
+            side: "left",
+            align: 'start'
+          }
+        },
+        {
+          element: '#countries-select',
+          popover: {
+            title: 'Select Countries',
+            description: 'Choose one or more countries to get salary predictions for different regions.',
+            side: "top",
+            align: 'start'
+          }
+        },
+        {
+          element: '#saved-predictions',
+          popover: {
+            title: 'Saved Predictions',
+            description: 'Your predictions will be saved here for future reference.',
+            side: "top",
+            align: 'start'
+          }
+        }
+      ]
+    })
+  );
+
+  useEffect(() => {
+    // Only show the tour if it's the user's first visit
+    const hasSeenTour = localStorage.getItem('hasSeenTour');
+    if (!hasSeenTour) {
+      driverObj.current.drive();
+      localStorage.setItem('hasSeenTour', 'true');
+    }
+  }, []);
   interface SavedPrediction {
     name: string;
     timestamp: number;
@@ -279,9 +341,20 @@ export default function SalaryForm() {
 
   return (
     <Paper shadow="xs" p="md" style={{ height: '100%' }}>
-      <Title order={3} mb="md">Salary Prediction Form</Title>
+      <Group justify="space-between" mb="md">
+        <Title order={3} id="welcome-message">Salary Prediction Form</Title>
+        <Button
+          variant="subtle"
+          size="xs"
+          onClick={() => driverObj.current.drive()}
+        >
+          Show Tour
+        </Button>
+      </Group>
 
-      <Collapse in={!isLoading && formExpanded}>
+      <Collapse in={!isLoading && formExpanded}
+        id="preset-selector"
+      >
         <Select
           label="Load Preset"
           placeholder="Select a job preset"
@@ -307,8 +380,8 @@ export default function SalaryForm() {
       <form onSubmit={form.onSubmit(handleSubmit)} style={{ marginTop: formExpanded ? 0 : '1rem' }}>
         <Card withBorder shadow="sm">
           <Stack gap="md">
-            <Collapse in={formExpanded}>
-              <Grid>
+            <Collapse in={formExpanded} id="form-section">
+              <Grid >
                 <Grid.Col span={6}>
                   <TextInput
                     label={
@@ -386,7 +459,7 @@ export default function SalaryForm() {
                   />
                 </Grid.Col>
 
-                <Grid.Col span={12}>
+                <Grid.Col span={12} id="countries-select" >
                   <MultiSelect
                     label={<FormLabel label="Countries" tooltip={formTooltips.countries} />}
                     placeholder="Select at least one country for prediction"
@@ -635,7 +708,7 @@ export default function SalaryForm() {
       </form>
 
       {savedPredictions.length > 0 && (
-        <Card withBorder mt="md">
+        <Card withBorder mt="md" id="saved-predictions">
           <Stack gap="md">
             <Group justify="space-between">
               <Title order={4}>Saved Predictions</Title>
