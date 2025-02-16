@@ -138,7 +138,7 @@ Feel free to ask any questions!`,
     setInput(''); // Clear input after sending
 
     try {
-      // @ts-ignore
+      // @ts-expect-error
       const stream = streamGeminiResponse(messageText, predictions, jobDetails, messages, modelConfig);
 
       for await (const chunk of stream) {
