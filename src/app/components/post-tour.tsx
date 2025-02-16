@@ -2,7 +2,12 @@ import { useEffect, useRef } from 'react';
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
-const PostTourComponent = () => {
+interface PostTourComponentProps {
+  tourVisible: boolean;
+  setTourVisible: (visible: boolean) => void;
+}
+
+const PostTourComponent: React.FC<PostTourComponentProps> = ({ tourVisible, setTourVisible  }) => {
   const driverObj = useRef(
     driver({
       showProgress: true,
@@ -43,14 +48,14 @@ const PostTourComponent = () => {
           },
         },
         {
-            element: '#suggestion-button',
-            popover: {
-              title: 'AI Generated Suggestion',
-              description: 'Click to update your post title and content based on AI suggested feedback',
-              side: 'top',
-              align: 'start',
-            },
+          element: '#suggestion-button',
+          popover: {
+            title: 'AI Generated Suggestion',
+            description: 'Click to update your post title and content based on AI suggested feedback',
+            side: 'top',
+            align: 'start',
           },
+        },
         {
           element: '#analysis-result',
           popover: {
@@ -76,11 +81,13 @@ const PostTourComponent = () => {
   useEffect(() => {
     const hasSeenTour = localStorage.getItem("hasSeenPostTour");
 
-    if (!hasSeenTour) {
+    if (!hasSeenTour || tourVisible) {
       driverObj.current.drive();
       localStorage.setItem("hasSeenPostTour", "true");
+      
+      setTourVisible(false);
     }
-  }, []);
+  }, [tourVisible, setTourVisible]);
 
   return null;
 };
