@@ -27,6 +27,7 @@ import { useForm } from '@mantine/form';
 import React, { useState, useEffect } from 'react';
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
+import "./driver.css";
 
 interface FormLabelProps {
   label: string;
@@ -68,13 +69,23 @@ export default function SalaryForm() {
   const driverObj = React.useRef(
     driver({
       showProgress: true,
+      animate: true,
+      smoothScroll: true,
+      stagePadding: 5,
+      popoverClass: 'custom-popover',
       steps: [
         {
           popover: {
             title: 'Welcome to Salary Predictor!',
-            description: 'Let me show you around our salary prediction tool.',
+            description: 'Let me show you around our salary prediction tool. \
+            \n\nClick "Next" to continue the tour or the "x" button on the top-right to stop automatic tours.',
             side: "bottom",
-            align: 'start'
+            align: 'start',
+            onCloseClick: () => {
+              localStorage.setItem('tourSkipped', 'true');
+              setShowTour(false);
+              driverObj.current.destroy();
+            }
           }
         },
         {
@@ -108,23 +119,21 @@ export default function SalaryForm() {
           element: '#saved-predictions',
           popover: {
             title: 'Saved Predictions',
-            description: 'Your predictions will be saved here for future reference.',
+            description: 'Your predictions will be saved here for future reference. \
+            \n\nThis concludes the tour. Thanks for exploring the Salary Predictor!',
             side: "top",
-            align: 'start'
+            align: 'start',
+            onNextClick: () => {
+              localStorage.setItem('tourSkipped', 'true');
+              setShowTour(false);
+              driverObj.current.destroy();
+            }
           }
         }
       ]
     })
   );
 
-  useEffect(() => {
-    // Only show the tour if it's the user's first visit
-    const hasSeenTour = localStorage.getItem('hasSeenTour');
-    if (!hasSeenTour) {
-      driverObj.current.drive();
-      localStorage.setItem('hasSeenTour', 'true');
-    }
-  }, []);
   interface SavedPrediction {
     name: string;
     timestamp: number;
@@ -174,6 +183,7 @@ export default function SalaryForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('software_engineer');
   const [formExpanded, setFormExpanded] = useState(true);
+  const [showTour, setShowTour] = useState(true);
 
 
   const [predictions, setPredictions] = useState<{ [key: string]: { salary: number | null; duration: number; relativeDuration: number } }>({});
@@ -188,6 +198,19 @@ export default function SalaryForm() {
   const timerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = React.useRef<number>(0);
   const fadeTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+
+  useEffect(() => {
+    const tourSkipped = localStorage.getItem('tourSkipped');
+    if (tourSkipped === 'true') {
+      setShowTour(false);
+      return; // Do not proceed to show tour if skipped
+    }
+
+    if (showTour) {
+      driverObj.current.drive();
+    }
+  }, [showTour]);
 
   // Cleanup function to ensure interval is properly cleared
   const clearCurrentInterval = () => {
@@ -225,7 +248,8 @@ export default function SalaryForm() {
 
     for (const country_code of values.countries) {
       const locationKey = `location_${country_code.toLowerCase()}` as keyof typeof values;
-      const locations = values[locationKey] as string[];
+      // Ensure locations is an array, default to empty array if undefined
+      const locations = (values[locationKey] as string[]) || [];
 
       if (locations.length === 0) {
         predictionQueue.push({ country: country_code, location: '' });
@@ -822,16 +846,14 @@ export default function SalaryForm() {
                             color="red"
                             size="xs"
                             onClick={() => {
-                              if (window.confirm(`Are you sure you want to delete "${saved.name}"?`)) {
-                                const updatedSavedPredictions = savedPredictions.filter((_, i) => i !== index);
-                                setSavedPredictions(updatedSavedPredictions);
-                                localStorage.setItem('savedPredictions', JSON.stringify(updatedSavedPredictions));
-                                notifications.show({
-                                  title: 'Deleted',
-                                  message: `Deleted "${saved.name}"`,
-                                  color: 'red',
-                                });
-                              }
+                              const updatedSavedPredictions = savedPredictions.filter((_, i) => i !== index);
+                              setSavedPredictions(updatedSavedPredictions);
+                              localStorage.setItem('savedPredictions', JSON.stringify(updatedSavedPredictions));
+                              notifications.show({
+                                title: 'Deleted',
+                                message: `Deleted "${saved.name}"`,
+                                color: 'red',
+                              });
                             }}
                           >
                             Delete
