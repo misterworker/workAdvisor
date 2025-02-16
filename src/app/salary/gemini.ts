@@ -2,10 +2,32 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
 
+type CountryCode = 'US' | 'SG' | 'IN';
+
+interface JobDetails {
+  job_title: string;
+  contract_type: string;
+  education_level: string;
+  seniority: string;
+  min_years_experience: number;
+  countries: CountryCode[];
+  location_us: string[];
+  location_in: string[];
+}
+
+interface PredictionData {
+  salary: number;
+  [key: string]: any;
+}
+
+interface Predictions {
+  [model: string]: PredictionData;
+}
+
 export async function* streamGeminiResponse(
   userInput: string,
-  predictions: any,
-  jobDetails: any,
+  predictions: Predictions,
+  jobDetails: JobDetails,
   messageHistory: { content: string; sender: 'user' | 'bot' }[],
   modelConfig: {
     medianSalary: { US: number; SG: number; IN: number };
@@ -32,7 +54,7 @@ export async function* streamGeminiResponse(
     - Experience Required: ${jobDetails.min_years_experience} years
 
     Location Details:
-    ${jobDetails.countries.map(country => {
+    ${jobDetails.countries.map((country: CountryCode) => {
     const locations = country === 'US' ? jobDetails.location_us
       : country === 'IN' ? jobDetails.location_in
         : [];
@@ -43,14 +65,14 @@ export async function* streamGeminiResponse(
     
     Model Configuration:
     Median Salaries per year (USD):
-    ${jobDetails.countries.map(country => {
+    ${jobDetails.countries.map((country: CountryCode) => {
     return `${country === 'US' ? '- United States'
       : country === 'SG' ? '- Singapore'
         : '- India'}: $${modelConfig.medianSalary[country].toLocaleString()}`
   }).join('\n    ')}
 
     Cost of Living expenses per year (USD):
-    ${jobDetails.countries.map(country => {
+    ${jobDetails.countries.map((country: CountryCode) => {
     return `${country === 'US' ? '- United States'
       : country === 'SG' ? '- Singapore'
         : '- India'}: $${modelConfig.costOfLiving[country].toLocaleString()}`
@@ -58,7 +80,7 @@ export async function* streamGeminiResponse(
 
     The salary predictions are:
     ${Object.entries(predictions)
-      .map(([model, data]) => `${model}: $${data.salary}`)
+      .map(([model, data]: [string, PredictionData]) => `${model}: $${data.salary}`)
       .join('\n')}
 
     Information related to this project:
