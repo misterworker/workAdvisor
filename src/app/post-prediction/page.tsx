@@ -74,7 +74,7 @@ export default function PostPredictionPage() {
     const storedHistory = localStorage.getItem("analysisHistory");
     return storedHistory ? JSON.parse(storedHistory) : [];
   };
-  
+
   const handlePrediction = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -120,11 +120,11 @@ export default function PostPredictionPage() {
               { category, title: postTitle, content: textInput, predictions: predictionData.predictions },
               ...prevHistory,
             ];
-            
+
             saveHistoryToLocalStorage(newHistory);
             return newHistory;
-          });          
-          
+          });
+
         } else {
           const error = await predictionResponse.json();
           setLlmResponse(`Error with prediction: ${error.error}`);
@@ -146,12 +146,12 @@ export default function PostPredictionPage() {
   const handleUpdateClick = () => {
     setPrevTitle(postTitle);
     setPrevContent(textInput);
-  
+
     setIsUpdating(true);
     setPostTitle(suggestedTitle);
     setTextInput(suggestedContent);
   };
-  
+
 
   const handleConfirmUpdate = () => {
     setIsUpdating(false);
@@ -167,7 +167,7 @@ export default function PostPredictionPage() {
     localStorage.removeItem("analysisHistory");
     setAnalysisHistory([]);
     setIsConfirmingClearHistory(false);
-  };  
+  };
 
   return (
     <Paper shadow="xs" p="xl" radius="md" style={{ minHeight: "100vh", backgroundColor: "#1A1B1E" }}>
@@ -221,7 +221,7 @@ export default function PostPredictionPage() {
                     placeholder="Enter your post content"
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
-                    rows = {6}
+                    rows={6}
                     disabled={loading}
                     radius="md"
                     style={{
@@ -231,7 +231,7 @@ export default function PostPredictionPage() {
                   />
 
                   {/* Submit Button */}
-                  <Button id = "validate-button" type="submit" fullWidth color="blue" radius="md" disabled={loading || isUpdating}>
+                  <Button id="validate-button" type="submit" fullWidth color="blue" radius="md" disabled={loading || isUpdating}>
                     {loading ? <Loader size="sm" color="white" /> : "Validate Post"}
                   </Button>
                 </Stack>
@@ -239,7 +239,7 @@ export default function PostPredictionPage() {
             </Paper>
 
             {/* AI Feedback Section */}
-            <Paper id = "ai" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
+            <Paper id="ai" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
               <Group>
                 <Title order={3} c="white">
                   AI Generated Feedback
@@ -256,7 +256,7 @@ export default function PostPredictionPage() {
                         </ActionIcon>
                       </>
                     ) : (
-                      <ActionIcon id = "suggestion-button" color="blue" onClick={handleUpdateClick}>
+                      <ActionIcon id="suggestion-button" color="blue" onClick={handleUpdateClick}>
                         <IconEdit />
                       </ActionIcon>
                     )}
@@ -277,7 +277,7 @@ export default function PostPredictionPage() {
 
         {/* Right Side (Analysis Result + History) */}
         <Grid.Col span={{ base: 12, md: 4 }}>
-        <Paper id = "analysis-result" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
+          <Paper id="analysis-result" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33" }}>
             <Title order={3} mb="md" c="white">
               Analysis Result
             </Title>
@@ -314,7 +314,7 @@ export default function PostPredictionPage() {
             )}
           </Paper>
           {/* Past Analyses (Inside a Scrollable Box) */}
-          <Paper id = "history" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33", marginTop: "20px" }}>
+          <Paper id="history" p="lg" radius="md" shadow="md" style={{ backgroundColor: "#2C2E33", marginTop: "20px" }}>
             {!isConfirmingClearHistory ? (
               <Button
                 fullWidth
