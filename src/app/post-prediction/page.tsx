@@ -18,7 +18,7 @@ import {
   ActionIcon,
   Group,
 } from "@mantine/core";
-import { IconCheck, IconX, IconEdit } from "@tabler/icons-react";
+import { IconCheck, IconX, IconEdit, IconHelpCircle } from "@tabler/icons-react";
 import PostTourComponent from '../components/post-tour';
 
 // Function to format AI response (clickable links, bullet points, bold text)
@@ -61,6 +61,8 @@ export default function PostPredictionPage() {
   const [prevContent, setPrevContent] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isConfirmingClearHistory, setIsConfirmingClearHistory] = useState(false);
+
+  const [tourVisible, setTourVisible] = useState(false);
 
   useEffect(() => {
     setAnalysisHistory(loadHistoryFromLocalStorage());
@@ -167,6 +169,10 @@ export default function PostPredictionPage() {
     localStorage.removeItem("analysisHistory");
     setAnalysisHistory([]);
     setIsConfirmingClearHistory(false);
+  };
+  
+  const startTour = () => {
+    setTourVisible(true);
   };
 
   return (
@@ -349,8 +355,8 @@ export default function PostPredictionPage() {
                         {item.category}: {item.title}
                       </Text>
                       {/* Shortened Post Content */}
-                      <Text size="xs" c="gray.5">
-                        {item.content.slice(0, 60)}...
+                      <Text size="xs" c="gray.5" style={{ whiteSpace: "pre-wrap" }}>
+                        {item.content}
                       </Text>
                       {/* Prediction Results */}
                       <Stack mt="sm">
@@ -382,7 +388,21 @@ export default function PostPredictionPage() {
           </Paper>
         </Grid.Col>
       </Grid>
-      <PostTourComponent />
+      <ActionIcon
+        size="xl"
+        radius="md"
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          backgroundColor: "#2C2E33",
+          color: "white",
+        }}
+        onClick={startTour}
+      >
+        <IconHelpCircle size={24} />
+      </ActionIcon>
+      <PostTourComponent tourVisible={tourVisible} setTourVisible={setTourVisible} />
     </Paper>
   );
 }
