@@ -96,7 +96,7 @@ export async function* streamGeminiResponse(
     Please provide helpful, concise answers about these salary predictions and job details.
     If asked about negotiation or career advice, provide practical, actionable suggestions.
 
-    You're encouraged to use markdown, however, do not go beyond lists, as the markdown renderer is primitive.
+    You're encouraged to use markdown, however, do not go beyond lists, as the markdown renderer is primitive. If you use markdown tables, the user will be distraught, as it is not rendered at all.
 
     Previous conversation:
     ${conversationHistory}
