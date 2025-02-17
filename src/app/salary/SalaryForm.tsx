@@ -60,8 +60,8 @@ function FormLabel({ label, tooltip, style }: FormLabelProps) {
 }
 
 import { predictSalary } from './actions';
-import { formTooltips, jobPresets } from './presets';
 import Chat from './Chat';
+import { formTooltips, jobPresets } from './presets';
 
 export default function SalaryForm() {
   const driverObj = React.useRef(
@@ -862,7 +862,7 @@ export default function SalaryForm() {
 
                             <Stack gap="xs">
                               <Text size="sm">
-                                {saved.formValues.job_title || saved.formValues.query}
+                                {saved.formValues.job_title}
                               </Text>
                               <Text size="xs" c="dimmed">
                                 {Object.keys(saved.predictions).length} predictions
