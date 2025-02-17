@@ -153,7 +153,6 @@ export default function SalaryForm() {
 
   interface FormValues {
     job_title: string;
-    query: string;
     job_description: string;
     contract_type: string;
     education_level: string;
@@ -168,7 +167,6 @@ export default function SalaryForm() {
   const form = useForm<FormValues>({
     initialValues: {
       job_title: '',
-      query: '',
       job_description: '',
       contract_type: '',
       education_level: '',
@@ -282,7 +280,6 @@ export default function SalaryForm() {
 
       const payload = {
         job_title: values.job_title,
-        query: values.query,
         job_description: values.job_description,
         contract_type: values.contract_type,
         education_level: values.education_level,
@@ -424,6 +421,47 @@ export default function SalaryForm() {
                 >
                   Product Manager
                 </Button>
+                <Box style={{}}>
+                  <Tooltip
+                    label={
+                      <img
+                        src="/Senior Lecturer.png"
+                        alt="Senior Lecturer Preview"
+                        style={{
+                          maxWidth: '500px',
+                          height: 'auto'
+                        }}
+                      />
+                    }
+                    position="bottom"
+                    transitionProps={{ transition: 'pop' }}
+                  >
+                    <Button
+                      variant={selectedPreset === 'senior_lecturer' ? 'filled' : 'light'}
+                      onClick={() => {
+                        setSelectedPreset('senior_lecturer');
+                        form.setValues(jobPresets.senior_lecturer);
+                      }}
+                      size="sm"
+                    >
+                      Senior Lecturer
+                      <Box
+                        style={{
+                          background: 'red',
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '10px',
+                          fontSize: '10px',
+                          position: 'absolute',
+                          top: '0',
+                          right: '0'
+                        }}
+                      >
+                        New!
+                      </Box>
+                    </Button>
+                  </Tooltip>
+                </Box>
                 <Button
                   variant="subtle"
                   color="gray"
@@ -444,7 +482,7 @@ export default function SalaryForm() {
               <Stack gap="md">
                 <Collapse in={formExpanded} transitionDuration={200} id="form-section">
                   <Grid style={{ minHeight: 0 }}>
-                    <Grid.Col span={6}>
+                    <Grid.Col span={12}>
                       <TextInput
                         label={
                           <FormLabel label="Job Title" tooltip={formTooltips.query} />
@@ -454,19 +492,13 @@ export default function SalaryForm() {
                       />
                     </Grid.Col>
 
-                    <Grid.Col span={6}>
-                      <TextInput
-                        label={<FormLabel label="Query" tooltip={formTooltips.query} />}
-                        placeholder="Enter query"
-                        {...form.getInputProps('query')}
-                      />
-                    </Grid.Col>
-
                     <Grid.Col span={12}>
                       <Textarea
                         label={<FormLabel label="Job Description" tooltip={formTooltips.job_description} />}
                         placeholder="Enter job description"
-                        minRows={3}
+                        minRows={2}
+                        maxRows={10}
+                        autosize
                         {...form.getInputProps('job_description')}
                       />
                     </Grid.Col>
@@ -727,14 +759,14 @@ export default function SalaryForm() {
                                         <Text fw={500} size="sm" lineClamp={1}>
                                           {location}
                                         </Text>
-                                        <Group justify="space-between" wrap="nowrap">
+                                        <Stack gap={0}>
                                           <Text fw={700} size="sm">
                                             ${data.salary?.toLocaleString() ?? 'N/A'}
                                           </Text>
                                           <Text size="xs" c="dimmed">
                                             {(data.relativeDuration / 1000).toFixed(2)}s
                                           </Text>
-                                        </Group>
+                                        </Stack>
                                       </Stack>
                                     </Card>
                                   );
@@ -819,7 +851,7 @@ export default function SalaryForm() {
                           <Stack gap="md">
                             <Group justify="space-between" wrap="nowrap">
                               <Stack gap={2}>
-                                <Text fw={700} truncate>
+                                <Text fw={700} >
                                   {saved.name}
                                 </Text>
                                 <Text size="xs" c="dimmed">

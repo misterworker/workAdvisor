@@ -38,5 +38,14 @@ export const jobPresets = {
     education_level: "Bachelor's",
     seniority: "Senior",
     min_years_experience: "7"
+  },
+  'senior_lecturer': {
+    job_title: "Lecturer / Senior Lecturer (Software Engineering) - School of Information Technology",
+    query: "Senior Lecturer",
+    job_description: "About the job: You will be a subject matter expert in Software Engineering and will play an active role in the academic, professional and personal development of your learners to prepare them for work & life.\n\nKey Responsibilities:\n• Develop courses including curriculum development, course delivery and project supervision\n• Spearhead and identify new opportunities, initiatives and collaborations with industry\n• Plan, lead, manage and undertake project development with industry\n\nRequirements:\n• At least 3 years of relevant experience in related domain\n• Relevant qualification in Computer Science, Engineering, Information Technology or related fields\n• Proficient in programming languages such as Python and Java/C#\n• Experience with databases (Oracle, MS SQL, MySQL, NoSQL) including SQL scripting and modeling\n• Extensive experience in managing software engineering projects\n• Strong knowledge of software architecture practices, design patterns, and OOP\n• Experience with agile methodologies (SCRUM)\n• Proficient in DevOps practices\n• Knowledge in software testing and security testing\n• Professional certifications (PMP or CITPM) preferred",
+    contract_type: "Full-time",
+    education_level: "Bachelor",
+    seniority: "Senior",
+    min_years_experience: "3"
   }
 };
