@@ -1,12 +1,11 @@
 
 "use client"
 
-import { useState, useRef, useEffect } from 'react';
-import { streamGeminiResponse } from './gemini';
-import { Paper, Title, Stack, TextInput, Button, ScrollArea, Text, Box, Code, List, ActionIcon, Popover, Group, Slider, Tooltip } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
-import { IconSettings } from '@tabler/icons-react';
+import { ActionIcon, Box, Button, Code, Group, List, Paper, Popover, ScrollArea, Slider, Stack, Text, TextInput, Title } from '@mantine/core';
+import { IconInfoCircle, IconSettings } from '@tabler/icons-react';
+import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { streamGeminiResponse } from './gemini';
 
 interface Message {
   content: string;
@@ -38,7 +37,6 @@ interface ChatProps {
   triggerInitialAnalysis?: boolean;
   jobDetails: {
     job_title: string;
-    query: string;
     job_description: string;
     contract_type: string;
     education_level: string;
@@ -138,6 +136,7 @@ Feel free to ask any questions!`,
     setInput(''); // Clear input after sending
 
     try {
+      // @ts-expect-error
       const stream = streamGeminiResponse(messageText, predictions, jobDetails, messages, modelConfig);
 
       for await (const chunk of stream) {
