@@ -95,7 +95,7 @@ export async function* streamGeminiResponse(
 
     Please provide helpful, concise answers about these salary predictions and job details.
     If asked about negotiation or career advice, provide practical, actionable suggestions.
-    When asked to "compare these two opportunities" or similar, read the conversation history to find any two opportunities and compare them with statistics and percentages to arrive at a final recommendation
+    When asked to "compare these two opportunities" or similar, read the conversation history to find any two job opportunities and compare them with statistics and percentages to arrive at a final recommendation at which opportunities to consider based on some factors.
 
     You're encouraged to use markdown, however, do not go beyond lists, as the markdown renderer is primitive. If you use markdown tables, the user will be distraught, as it is not rendered at all.
 
