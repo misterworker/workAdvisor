@@ -77,6 +77,13 @@ export default function PostPredictionPage() {
     return storedHistory ? JSON.parse(storedHistory) : [];
   };
 
+    // Handle clicking "Load" button from history
+    const handleLoadHistory = (historyItem: any) => {
+      setPostTitle(historyItem.title);
+      setTextInput(historyItem.content);
+      setCategory(historyItem.category);
+    };
+
   const handlePrediction = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -358,6 +365,13 @@ export default function PostPredictionPage() {
                       <Text size="xs" c="gray.5" style={{ whiteSpace: "pre-wrap" }}>
                         {item.content}
                       </Text>
+                      <Button color="blue" onClick={() => handleLoadHistory(item)} size="xs">
+                        <Group gap="xs">
+                          <IconCheck size={16} />
+                          Load
+                        </Group>
+                      </Button>
+
                       {/* Prediction Results */}
                       <Stack mt="sm">
                         {item.predictions.map((prediction: any, index: number) => (
