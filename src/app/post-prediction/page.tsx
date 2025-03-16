@@ -90,7 +90,7 @@ export default function PostPredictionPage() {
     setAlertMessage(null);
 
     try {
-      const response = await fetch("https://validate-post-78306345447.asia-southeast1.run.app/validate_post", {
+      const response = await fetch(process.env.VALIDATE_POST, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: textInput, title: postTitle, category }),
@@ -115,7 +115,7 @@ export default function PostPredictionPage() {
           return;
         }
 
-        const predictionResponse = await fetch("https://post-prediction-78306345447.asia-southeast1.run.app/predict", {
+        const predictionResponse = await fetch(process.env.PREDICT_POST, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ post_content: textInput, post_title: postTitle, category }),

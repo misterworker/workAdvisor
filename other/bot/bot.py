@@ -16,7 +16,8 @@ app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://work-advisor.vercel.app"],
+    allow_origins=["https://work-advisor.vercel.app", "https://work-advisor-seven.vercel.app"],
+    # allow_origins=["https://work-advisor.vercel.app", "https://work-advisor-seven.vercel.app", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,7 +29,8 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 
 OpenAI_llm = ChatOpenAI(
     model="gpt-4o-mini",
-    temperature=0.5,    timeout=None,
+    temperature=0.5,    
+    timeout=None,
     max_retries=2,
     api_key=OPENAI_API_KEY,
 )
