@@ -90,7 +90,7 @@ export default function PostPredictionPage() {
     setAlertMessage(null);
 
     try {
-      const response = await fetch(process.env.VALIDATE_POST, {
+      const response = await fetch(process.env.VALIDATE_POST as string, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: textInput, title: postTitle, category }),
@@ -115,7 +115,7 @@ export default function PostPredictionPage() {
           return;
         }
 
-        const predictionResponse = await fetch(process.env.PREDICT_POST, {
+        const predictionResponse = await fetch(process.env.PREDICT_POST as string, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ post_content: textInput, post_title: postTitle, category }),
